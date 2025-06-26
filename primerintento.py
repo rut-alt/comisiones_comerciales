@@ -218,4 +218,4 @@ if penalizacion_total > 0:
 
     st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
 
-st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
+st.markdown(f"## ✅ Prima final a cobrar= **{prima_final:.2f} €**")
