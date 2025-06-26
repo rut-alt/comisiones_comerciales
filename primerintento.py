@@ -140,7 +140,7 @@ comision_sobre_beneficio = calcular_comision_por_beneficio(beneficio_financiacio
 bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
 
 bono_resenas = 0
-if entregas > 0 and (resenas / entregas) > 0.5:
+if entregas > 0 and (resenas / entregas) >= 0.5:
     bono_resenas = resenas * 5
 
 # Bonificación por ventas sobre PVP
