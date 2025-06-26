@@ -112,6 +112,7 @@ st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
 st.markdown("### 📊 RESUMEN Y RESULTADO DE LA COMISIÓN")
 
 # Funciones de cálculo
+
 def calcular_tarifa_entrega(n):
     if n <= 5:
         return 20
@@ -204,25 +205,17 @@ if beneficio_financiero < 4000:
 
 prima_final = prima_total - penalizacion_total
 
-# Mostrar resumen
-st.subheader("• Comisiones base")
-st.write(f"Entregas: {comision_entregas:.2f} €")
-st.write(f"Compras: {comision_compras:.2f} €")
-st.write(f"VH cambio: {comision_vh_cambio:.2f} €")
+st.markdown(f"### ✔ Prima total antes de penalizaciones: {prima_total:.2f} €")
 
-st.subheader("• Bonificaciones")
-st.write(f"Financiación: {bono_financiacion:.2f} €")
-st.write(f"Entrega rápida: {bono_rapida:.2f} €")
-st.write(f"Stock largo: {bono_stock:.2f} €")
-st.write(f"Reseñas: {bono_resenas:.2f} €")
-st.write(f"Garantías: {bono_garantias:.2f} €")
-st.write(f"Sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
+if penalizaciones_detalle:
+    st.markdown("""
+        <div style='background-color: #ffcccc; padding: 15px; border: 2px solid red; border-radius: 10px;'>
+        <h4 style='color: red;'>⚠️ Penalizaciones aplicadas</h4>
+    """, unsafe_allow_html=True)
+    for motivo, valor in penalizaciones_detalle:
+        st.markdown(f"<p>🔸 {motivo}: <strong>-{valor:.2f} €</strong></p>", unsafe_allow_html=True)
+    st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
 
-st.subheader("• Penalizaciones")
-for motivo, valor in penalizaciones_detalle:
-    st.markdown(f"🔸 {motivo}: -{valor:.2f} €")
-st.write(f"Total penalizaciones: -{penalizacion_total:.2f} €")
-
-st.markdown(f"### 💰 Prima final a cobrar: **{prima_final:.2f} €**")
+st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
 
 st.markdown("""</div>""", unsafe_allow_html=True)
