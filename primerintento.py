@@ -187,24 +187,25 @@ if beneficio_financiero < 4000:
 prima_final = prima_total - penalizacion_total
 
 # Mostrar resultados
-st.subheader("💶 Comisiones base")
+st.subheader("• Comisiones base")
 st.write(f"Entregas: {comision_entregas:.2f} €")
 st.write(f"Compras: {comision_compras:.2f} €")
 st.write(f"VH cambio: {comision_vh_cambio:.2f} €")
 
-st.subheader("📌 Bonificaciones y penalizaciones por entrega")
+st.subheader("• Bonificaciones y penalizaciones por entrega")
 st.write(f"Bonificación por financiación: {bono_financiacion:.2f} €")
 st.write(f"Bonificación por entrega rápida: {bono_entrega_rapida:.2f} €")
 st.write(f"Bonificación por stock largo: {bono_stock_largo:.2f} €")
-st.write(f"Penalización por descuentos: {penalizacion_descuento:.2f} €")
 st.write(f"Bonificación por reseñas (>50%): {bono_resenas:.2f} €")
+st.write(f"Penalización por descuentos: {penalizacion_descuento:.2f} €")
 
-st.subheader("📈 Incentivos adicionales")
+
+st.subheader("• Incentivos adicionales")
 st.write(f"Comisión por beneficio financiero: {comision_sobre_beneficio:.2f} €")
 st.write(f"Incentivo por garantías premium: {bono_garantias:.2f} €")
 st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
 
-st.markdown(f"### 💰 Prima total antes de penalizaciones: {prima_total:.2f} €")
+st.markdown(f"### Prima total antes de penalizaciones: {prima_total:.2f} €")
 
 if penalizacion_total > 0:
     st.markdown("""
