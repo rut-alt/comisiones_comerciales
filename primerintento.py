@@ -205,19 +205,18 @@ if beneficio_financiero < 4000:
 
 prima_final = prima_total - penalizacion_total
 
-# Mostrar desglose de la prima total
 st.subheader("🧾 Desglose de la Prima Total")
-st.write(f"###Comisión### por entregas: {comision_entregas:.2f} €")
-st.write(f"###Comisión### por compras: {comision_compras:.2f} €")
-st.write(f"###Comisión### por VH cambio: {comision_vh_cambio:.2f} €")
-st.write(f"###Comisión### sobre beneficio financiero: {comision_beneficio:.2f} €")
-st.write(f"###Bonificación### por financiación: {bono_financiacion:.2f} €")
-st.write(f"###Bonificación### por entrega rápida: {bono_rapida:.2f} €")
-st.write(f"###Bonificación### por stock >150 días: {bono_stock:.2f} €")
-st.write(f"###Bonificación### por garantías premium: {bono_garantias:.2f} €")
-st.write(f"###Bonificación### por reseñas: {bono_resenas:.2f} €")
-st.write(f"###Bonificación### por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
-st.write(f"###Penalización### por entregas con descuento: {penalizacion_descuento:.2f} €")
+st.markdown(f"**Comisión** por entregas: {comision_entregas:.2f} €")
+st.markdown(f"**Comisión** por compras: {comision_compras:.2f} €")
+st.markdown(f"**Comisión** por VH cambio: {comision_vh_cambio:.2f} €")
+st.markdown(f"**Comisión** sobre beneficio financiero: {comision_beneficio:.2f} €")
+st.markdown(f"**Bonificación** por financiación: {bono_financiacion:.2f} €")
+st.markdown(f"**Bonificación** por entrega rápida: {bono_rapida:.2f} €")
+st.markdown(f"**Bonificación** por stock >150 días: {bono_stock:.2f} €")
+st.markdown(f"**Bonificación** por garantías premium: {bono_garantias:.2f} €")
+st.markdown(f"**Bonificación** por reseñas: {bono_resenas:.2f} €")
+st.markdown(f"**Bonificación** por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
+st.markdown(f"**Penalización** por entregas con descuento: {penalizacion_descuento:.2f} €")
 
 st.markdown(f"### ✔ Prima total antes de penalizaciones = {prima_total:.2f} €")
 
