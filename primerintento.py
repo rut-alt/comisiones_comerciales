@@ -16,13 +16,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Mostrar logo empresa
+# Cargar imagen logo
 logo = Image.open("LOGO-HRMOTOR-RGB.png")
-st.image(logo, width=250)
 
-st.title("🧮 Calculadora de Comisiones de Vendedores")
+# Header con columnas: título a la izquierda, logo a la derecha
+col1, col2 = st.columns([3, 1])
 
-# Entrada de datos generales
+with col1:
+    st.markdown(f"<h1 style='color:#2b344d; font-weight:700;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
+
+with col2:
+    st.image(logo, width=250)
+
+# --- Entrada de datos generales ---
 nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 
 entregas = st.number_input("Nº de entregas totales", min_value=0, step=1)
@@ -64,22 +70,25 @@ def calcular_tarifa_entrega(n):
     else:
         return 90
 
-def calcular_comision_entregas(total, compartidas, otra_delegacion, es_nueva):
-    entregas_normales = total - compartidas - otra_delegacion
-
-    if es_nueva and total <= 5:
-        # Tarifa fija para nueva incorporación y hasta 5 coches
-        comision_normales = entregas_normales * 20
-        comision_otros = (compartidas + otra_delegacion) * 10  # mitad de 20
-        return comision_normales + comision_otros
-
-    # Para más de 5 o no nueva incorporación, calcular tarifa según total
-    tarifa = calcular_tarifa_entrega(total)
-
-    comision_normales = entregas_normales * tarifa
-    comision_otros = (compartidas + otra_delegacion) * (tarifa * 0.5)
-
-    return comision_normales + comision_otros
+def calcular_comision_entregas(entregas_delegacion, entregas_otra_delegacion, es_nueva):
+    total_entregas = entregas_delegacion + entregas_otra_delegacion
+    
+    # Tarifas según entregas en su delegación y total entregas
+    tarifa_delegacion = calcular_tarifa_entrega(entregas_delegacion)
+    tarifa_total = calcular_tarifa_entrega(total_entregas)
+    
+    # Comisión entregas en su delegación
+    comision_delegacion = entregas_delegacion * tarifa_delegacion
+    
+    # Comisión entregas en otras delegaciones (mitad tarifa según total entregas)
+    comision_otra_delegacion = entregas_otra_delegacion * (tarifa_total * 0.5)
+    
+    # Si es nueva incorporación y total entregas <= 5, tarifa fija 20€ y mitad para otras
+    if es_nueva and total_entregas <= 5:
+        comision_delegacion = entregas_delegacion * 20
+        comision_otra_delegacion = entregas_otra_delegacion * 10
+    
+    return comision_delegacion + comision_otra_delegacion
 
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
@@ -113,7 +122,10 @@ def calcular_incentivo_garantias(f):
 
 # ------------------ CÁLCULOS ------------------
 
-comision_entregas = calcular_comision_entregas(entregas, entregas_compartidas, entregas_otra_delegacion, nueva_incorporacion)
+# Calculamos entregas en su delegación excluyendo compartidas y otras delegaciones
+entregas_delegacion = entregas - entregas_compartidas - entregas_otra_delegacion
+
+comision_entregas = calcular_comision_entregas(entregas_delegacion, entregas_otra_delegacion, nueva_incorporacion)
 comision_compras = compras * 60
 comision_vh_cambio = vh_cambio * 30
 
