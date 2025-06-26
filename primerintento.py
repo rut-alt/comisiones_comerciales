@@ -3,7 +3,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos generales y fondo
+# Estilos generales y fondo con imagen personalizada hasta la sección de resultados
 st.markdown("""
     <style>
     .main {
@@ -11,10 +11,14 @@ st.markdown("""
         color: black !important;
     }
     .input-section {
-        background-color: #f0f2f6;
+        background-image: url('istockphoto-484327013-612x612.jpg');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 25px;
+        backdrop-filter: brightness(0.9);
     }
     .result-section {
         background-color: #eaf6ff;
@@ -84,9 +88,12 @@ with col_d4:
 resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1)
 st.markdown("""</div>""", unsafe_allow_html=True)
 
-# Zona de resultados
+# === ZONA DE RESULTADOS ===
 st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
 st.markdown("### RESULTADOS Y RESUMEN")
-# Aquí irían los cálculos y el resumen
+
+# Aquí van los cálculos y presentación de resultados
+# (puedo ayudarte a añadirlos si los necesitas integrados aquí)
+
 st.markdown("""</div>""", unsafe_allow_html=True)
 
