@@ -64,6 +64,8 @@ def calcular_comision_entregas(total_entregas, entregas_otra_delegacion, es_nuev
     if es_nueva and total_entregas <= 5:
         comision += entregas_normales * 20
         comision += entregas_otra_delegacion * 10
+    elif not es_nueva and total_entregas <= 5:
+        comision = 0
     else:
         comision += entregas_normales * tarifa_total
         comision += entregas_otra_delegacion * (tarifa_total * 0.5)
