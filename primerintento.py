@@ -3,24 +3,53 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Fondo blanco y texto negro
+# Estilos generales con bloques diferenciados y bloque azul para inputs
 st.markdown("""
     <style>
     .main {
         background-color: white !important;
         color: black !important;
     }
+    .input-section {
+        background-color: #f7f7f7;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        border: 1px solid #ccc;
+    }
+    .result-section {
+        background-color: #eaf6ff;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 25px;
+        border: 1px solid #cce5ff;
+    }
+    .input-blue-block {
+        background-color: #2b344d;
+        color: white !important;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+    .input-blue-block label, 
+    .input-blue-block div[data-baseweb="input"] input, 
+    .input-blue-block .st-b5 {
+        color: white !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Logo y título con estilo
+# Cargar y mostrar logo
 logo = Image.open("LOGO-HRMOTOR-RGB.png")
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
 with col2:
     st.image(logo, width=150)
-nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
+
+# === BLOQUE AZUL DE ENTRADAS ===
+st.markdown("<div class='input-blue-block'>", unsafe_allow_html=True)
+
 # BLOQUE A - ENTREGAS
 st.markdown("### A. ENTREGAS")
 col_a1, col_a2, col_a3 = st.columns(3)
@@ -30,6 +59,7 @@ with col_a2:
     entregas_otra_delegacion = st.number_input("A.2 Entregas en otra delegación", min_value=0, max_value=entregas, step=1)
 with col_a3:
     entregas_compartidas = st.number_input("A.3 Entregas compartidas", min_value=0, max_value=entregas, step=1)
+nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 
 # BLOQUE B - OTRAS OPERACIONES
 st.markdown("### B. OTRAS OPERACIONES")
@@ -49,9 +79,9 @@ with col_c2:
     beneficio_financiero = st.number_input("C.3 Beneficio financiero conseguido (€)", min_value=0, step=100)
     beneficio_financiacion_total = st.number_input("C.4 Importe total beneficio por financiación (€)", min_value=0, step=100)
 
-# BLOQUE D - BONIFICACIONES POR ENTREGA (incluye reseñas)
+# BLOQUE D - BONIFICACIONES POR ENTREGA
 st.markdown("### D. BONIFICACIONES POR ENTREGA")
-col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns(5)
+col_d1, col_d2, col_d3, col_d4 = st.columns(4)
 with col_d1:
     entregas_con_financiacion = st.number_input("D.1 Entregas con financiación", min_value=0, max_value=entregas, step=1)
 with col_d2:
@@ -60,10 +90,29 @@ with col_d3:
     entregas_stock_largo = st.number_input("D.3 Entregas con +150 días de stock", min_value=0, max_value=entregas, step=1)
 with col_d4:
     entregas_con_descuento = st.number_input("D.4 Entregas con descuento aplicado", min_value=0, max_value=entregas, step=1)
-with col_d5:
-    resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, max_value=entregas, step=1)
+resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, max_value=entregas, step=1)
 
-# Funciones para cálculos
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Bonificación por ventas sobre PVP (fuera del bloque azul)
+st.subheader("🚗 Bonificación por venta sobre precio de tarifa")
+n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1)
+bono_ventas_sobre_pvp = 0
+
+for i in range(n_casos_venta_superior):
+    st.markdown(f"**Coche {i+1}**")
+    pvp = st.number_input(f"→ PVP recomendado coche {i+1} (€)", min_value=0, step=100, key=f"pvp_{i}")
+    precio_final = st.number_input(f"→ Precio final de venta coche {i+1} (€)", min_value=0, step=100, key=f"venta_{i}")
+
+    if precio_final > pvp:
+        diferencia = precio_final - pvp
+        bono = diferencia * 0.05
+        bono_ventas_sobre_pvp += bono
+        st.success(f"✅ Bonificación por este coche: {bono:.2f} €")
+    else:
+        st.warning("❌ No hay bonificación: no supera el PVP.")
+
+# --- Funciones para cálculos ---
 def calcular_tarifa_entrega(n):
     if n <= 5:
         return 20
@@ -82,19 +131,13 @@ def calcular_tarifa_entrega(n):
 
 def calcular_comision_entregas(total_entregas, entregas_otra_delegacion, es_nueva):
     entregas_normales = total_entregas - entregas_otra_delegacion
-    comision = 0
     tarifa_total = calcular_tarifa_entrega(total_entregas)
-
     if es_nueva and total_entregas <= 5:
-        comision += entregas_normales * 20
-        comision += entregas_otra_delegacion * 10
+        return entregas_normales * 20 + entregas_otra_delegacion * 10
     elif not es_nueva and total_entregas <= 5:
-        comision = 0
+        return 0
     else:
-        comision += entregas_normales * tarifa_total
-        comision += entregas_otra_delegacion * (tarifa_total * 0.5)
-
-    return comision
+        return entregas_normales * tarifa_total + entregas_otra_delegacion * (tarifa_total * 0.5)
 
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
@@ -143,24 +186,6 @@ bono_resenas = 0
 if entregas > 0 and (resenas / entregas) >= 0.5:
     bono_resenas = resenas * 5
 
-# Bonificación por ventas sobre PVP
-st.subheader("🚗 Bonificación por venta sobre precio de tarifa")
-n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1)
-bono_ventas_sobre_pvp = 0
-
-for i in range(n_casos_venta_superior):
-    st.markdown(f"**Coche {i+1}**")
-    pvp = st.number_input(f"→ PVP recomendado coche {i+1} (€)", min_value=0, step=100, key=f"pvp_{i}")
-    precio_final = st.number_input(f"→ Precio final de venta coche {i+1} (€)", min_value=0, step=100, key=f"venta_{i}")
-
-    if precio_final > pvp:
-        diferencia = precio_final - pvp
-        bono = diferencia * 0.05
-        bono_ventas_sobre_pvp += bono
-        st.success(f"✅ Bonificación por este coche: {bono:.2f} €")
-    else:
-        st.warning("❌ No hay bonificación: no supera el PVP.")
-
 # Suma antes de penalizaciones
 prima_total = (
     comision_entregas + comision_compras + comision_vh_cambio + bono_financiacion + bono_entrega_rapida +
@@ -199,13 +224,12 @@ st.write(f"Bonificación por stock largo: {bono_stock_largo:.2f} €")
 st.write(f"Bonificación por reseñas (>50%): {bono_resenas:.2f} €")
 st.write(f"Penalización por descuentos: {penalizacion_descuento:.2f} €")
 
-
 st.subheader("• Incentivos adicionales")
 st.write(f"Comisión por beneficio financiero: {comision_sobre_beneficio:.2f} €")
 st.write(f"Incentivo por garantías premium: {bono_garantias:.2f} €")
 st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
 
-st.markdown(f"### ✔ Prima total antes de penalizaciones: {prima_total:.2f} €")
+st.markdown(f"### ✔Prima total antes de penalizaciones: {prima_total:.2f} €")
 
 if penalizacion_total > 0:
     st.markdown("""
@@ -218,4 +242,4 @@ if penalizacion_total > 0:
 
     st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
 
-st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")  
+st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
