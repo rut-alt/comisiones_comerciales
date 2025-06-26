@@ -20,7 +20,7 @@ with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
 with col2:
     st.image(logo, width=150)
-
+nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 # BLOQUE A - ENTREGAS
 st.markdown("### A. ENTREGAS")
 col_a1, col_a2, col_a3 = st.columns(3)
@@ -30,8 +30,6 @@ with col_a2:
     entregas_otra_delegacion = st.number_input("A.2 Entregas en otra delegación", min_value=0, max_value=entregas, step=1)
 with col_a3:
     entregas_compartidas = st.number_input("A.3 Entregas compartidas", min_value=0, max_value=entregas, step=1)
-
-nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 
 # BLOQUE B - OTRAS OPERACIONES
 st.markdown("### B. OTRAS OPERACIONES")
@@ -51,21 +49,19 @@ with col_c2:
     beneficio_financiero = st.number_input("C.3 Beneficio financiero conseguido (€)", min_value=0, step=100)
     beneficio_financiacion_total = st.number_input("C.4 Importe total beneficio por financiación (€)", min_value=0, step=100)
 
-# BLOQUE D - BONIFICACIONES POR ENTREGA
+# BLOQUE D - BONIFICACIONES POR ENTREGA (incluye reseñas)
 st.markdown("### D. BONIFICACIONES POR ENTREGA")
-col_d1, col_d2, col_d3, col_d4 = st.columns(4)
+col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns(5)
 with col_d1:
     entregas_con_financiacion = st.number_input("D.1 Entregas con financiación", min_value=0, max_value=entregas, step=1)
 with col_d2:
-    entregas_rapidas = st.number_input("D.2 Entregas rápidas", min_value=0, max_value=entregas, step=1)
+    entregas_rapidas = st.number_input("D.2 Entregas rápidas O express", min_value=0, max_value=entregas, step=1)
 with col_d3:
     entregas_stock_largo = st.number_input("D.3 Entregas con +150 días de stock", min_value=0, max_value=entregas, step=1)
 with col_d4:
     entregas_con_descuento = st.number_input("D.4 Entregas con descuento aplicado", min_value=0, max_value=entregas, step=1)
-
-# BLOQUE E - RESEÑAS
-st.markdown("### E. RESEÑAS")
-resenas = st.number_input("E.1 Nº de reseñas conseguidas", min_value=0, step=1)
+with col_d5:
+    resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, max_value=entregas, step=1)
 
 # Funciones para cálculos
 def calcular_tarifa_entrega(n):
@@ -89,17 +85,13 @@ def calcular_comision_entregas(total_entregas, entregas_otra_delegacion, es_nuev
     comision = 0
     tarifa_total = calcular_tarifa_entrega(total_entregas)
 
-    # Nueva incorporación: cobra tramo 0-5 (20€) y después normal
     if es_nueva and total_entregas <= 5:
         comision += entregas_normales * 20
         comision += entregas_otra_delegacion * 10
     elif not es_nueva and total_entregas <= 5:
-        # No cobra si no es nueva y tiene 5 o menos entregas
         comision = 0
     else:
-        # Para las entregas en su delegación, cobra tarifa plena del tramo que corresponda
         comision += entregas_normales * tarifa_total
-        # Para entregas en otras delegaciones cobra la mitad de la tarifa del tramo
         comision += entregas_otra_delegacion * (tarifa_total * 0.5)
 
     return comision
@@ -205,10 +197,10 @@ st.write(f"Bonificación por financiación: {bono_financiacion:.2f} €")
 st.write(f"Bonificación por entrega rápida: {bono_entrega_rapida:.2f} €")
 st.write(f"Bonificación por stock largo: {bono_stock_largo:.2f} €")
 st.write(f"Penalización por descuentos: {penalizacion_descuento:.2f} €")
+st.write(f"Bonificación por reseñas (>50%): {bono_resenas:.2f} €")
 
 st.subheader("📈 Incentivos adicionales")
 st.write(f"Comisión por beneficio financiero: {comision_sobre_beneficio:.2f} €")
-st.write(f"Bonificación por reseñas (>50%): {bono_resenas:.2f} €")
 st.write(f"Incentivo por garantías premium: {bono_garantias:.2f} €")
 st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
 
