@@ -17,10 +17,11 @@ st.markdown("""
         margin-bottom: 25px;
     }
     .result-section {
-        background-color: #e8f0ff;
+        background-color: #eaf6ff;
         padding: 20px;
         border-radius: 10px;
         margin-top: 25px;
+        border: 1px solid #cce5ff;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -83,4 +84,9 @@ with col_d4:
 resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1)
 st.markdown("""</div>""", unsafe_allow_html=True)
 
-# El resto del código continúa con los cálculos y presentación de resultados como hasta ahora.
+# Zona de resultados
+st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
+st.markdown("### RESULTADOS Y RESUMEN")
+# Aquí irían los cálculos y el resumen
+st.markdown("""</div>""", unsafe_allow_html=True)
+
