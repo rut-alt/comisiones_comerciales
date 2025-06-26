@@ -13,17 +13,16 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar y mostrar logo
+# Logo y título con estilo
 logo = Image.open("LOGO-HRMOTOR-RGB.png")
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
 with col2:
-    st.image(logo, width=250)
+    st.image(logo, width=150)
 
-# === A. BLOQUE DE ENTREGAS ===
+# BLOQUE A - ENTREGAS
 st.markdown("### A. ENTREGAS")
-
 col_a1, col_a2, col_a3 = st.columns(3)
 with col_a1:
     entregas = st.number_input("A.1 Entregas totales", min_value=0, step=1)
@@ -34,7 +33,7 @@ with col_a3:
 
 nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 
-# === B. OTRAS OPERACIONES ===
+# BLOQUE B - OTRAS OPERACIONES
 st.markdown("### B. OTRAS OPERACIONES")
 col_b1, col_b2 = st.columns(2)
 with col_b1:
@@ -42,7 +41,7 @@ with col_b1:
 with col_b2:
     vh_cambio = st.number_input("B.2 VH puesto a la venta como cambio", min_value=0, step=1)
 
-# === C. GARANTÍAS Y FINANCIACIÓN ===
+# BLOQUE C - GARANTÍAS Y FINANCIACIÓN
 st.markdown("### C. GARANTÍAS Y FINANCIACIÓN")
 col_c1, col_c2 = st.columns(2)
 with col_c1:
@@ -52,7 +51,7 @@ with col_c2:
     beneficio_financiero = st.number_input("C.3 Beneficio financiero conseguido (€)", min_value=0, step=100)
     beneficio_financiacion_total = st.number_input("C.4 Importe total beneficio por financiación (€)", min_value=0, step=100)
 
-# === D. BONIFICACIONES POR ENTREGA ===
+# BLOQUE D - BONIFICACIONES POR ENTREGA
 st.markdown("### D. BONIFICACIONES POR ENTREGA")
 col_d1, col_d2, col_d3, col_d4 = st.columns(4)
 with col_d1:
@@ -64,11 +63,11 @@ with col_d3:
 with col_d4:
     entregas_con_descuento = st.number_input("D.4 Entregas con descuento aplicado", min_value=0, max_value=entregas, step=1)
 
-# === E. RESEÑAS ===
+# BLOQUE E - RESEÑAS
 st.markdown("### E. RESEÑAS")
 resenas = st.number_input("E.1 Nº de reseñas conseguidas", min_value=0, step=1)
 
-# === Funciones ===
+# Funciones para cálculos
 def calcular_tarifa_entrega(n):
     if n <= 5:
         return 20
@@ -90,13 +89,17 @@ def calcular_comision_entregas(total_entregas, entregas_otra_delegacion, es_nuev
     comision = 0
     tarifa_total = calcular_tarifa_entrega(total_entregas)
 
+    # Nueva incorporación: cobra tramo 0-5 (20€) y después normal
     if es_nueva and total_entregas <= 5:
         comision += entregas_normales * 20
         comision += entregas_otra_delegacion * 10
     elif not es_nueva and total_entregas <= 5:
+        # No cobra si no es nueva y tiene 5 o menos entregas
         comision = 0
     else:
+        # Para las entregas en su delegación, cobra tarifa plena del tramo que corresponda
         comision += entregas_normales * tarifa_total
+        # Para entregas en otras delegaciones cobra la mitad de la tarifa del tramo
         comision += entregas_otra_delegacion * (tarifa_total * 0.5)
 
     return comision
@@ -131,14 +134,16 @@ def calcular_incentivo_garantias(f):
     else:
         return f * 0.10
 
-# === Cálculos principales ===
+# Cálculos principales
 comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
 comision_compras = compras * 60
 comision_vh_cambio = vh_cambio * 30
+
 bono_financiacion = entregas_con_financiacion * 10
 bono_entrega_rapida = entregas_rapidas * 5
 bono_stock_largo = entregas_stock_largo * 5
 penalizacion_descuento = entregas_con_descuento * -15
+
 comision_sobre_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_total)
 bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
 
@@ -146,7 +151,7 @@ bono_resenas = 0
 if entregas > 0 and (resenas / entregas) > 0.5:
     bono_resenas = resenas * 5
 
-# --- Bonificación por ventas sobre PVP ---
+# Bonificación por ventas sobre PVP
 st.subheader("🚗 Bonificación por venta sobre precio de tarifa")
 n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1)
 bono_ventas_sobre_pvp = 0
@@ -164,13 +169,13 @@ for i in range(n_casos_venta_superior):
     else:
         st.warning("❌ No hay bonificación: no supera el PVP.")
 
-# === Prima total ===
+# Suma antes de penalizaciones
 prima_total = (
     comision_entregas + comision_compras + comision_vh_cambio + bono_financiacion + bono_entrega_rapida +
     bono_stock_largo + penalizacion_descuento + comision_sobre_beneficio + bono_resenas + bono_garantias + bono_ventas_sobre_pvp
 )
 
-# Penalizaciones
+# Penalizaciones desglosadas
 penalizacion_total = 0
 penalizaciones_detalle = []
 
@@ -189,7 +194,7 @@ if beneficio_financiero < 4000:
 
 prima_final = prima_total - penalizacion_total
 
-# === Mostrar resultados ===
+# Mostrar resultados
 st.subheader("💶 Comisiones base")
 st.write(f"Entregas: {comision_entregas:.2f} €")
 st.write(f"Compras: {comision_compras:.2f} €")
