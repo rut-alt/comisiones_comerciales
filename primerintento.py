@@ -1,4 +1,4 @@
-podemos hacer dos bloques en este codigo? import streamlit as st
+import streamlit as st
 from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
@@ -218,4 +218,4 @@ if penalizacion_total > 0:
 
     st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
 
-st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")  el primer bloque de entrada va hasta bonificacion por venta sobre precio incluido y despues el resumen de como quedan tus comisiones con otro color de fondo? 
+st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
