@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image
+import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
@@ -42,6 +43,56 @@ with col1:
 with col2:
     st.image(logo, width=250)
 
+# === SUBIR CSV ===
+st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+st.markdown("### 📂 Cargar datos desde CSV (opcional)")
+
+uploaded_file = st.file_uploader("Sube un archivo CSV con los datos", type=["csv"])
+
+# Variables por defecto
+default_values = {
+    "entregas": 0,
+    "entregas_otra_delegacion": 0,
+    "entregas_compartidas": 0,
+    "nueva_incorporacion": False,
+    "compras": 0,
+    "vh_cambio": 0,
+    "garantias_premium": 0,
+    "facturacion_garantias": 0,
+    "beneficio_financiero": 0,
+    "beneficio_financiacion_total": 0,
+    "entregas_con_financiacion": 0,
+    "entregas_rapidas": 0,
+    "entregas_stock_largo": 0,
+    "entregas_con_descuento": 0,
+    "resenas": 0,
+    "n_casos_venta_superior": 0,
+    # Nota: ventas sobre PVP se gestionan abajo con inputs dinámicos
+}
+
+if uploaded_file is not None:
+    try:
+        df = pd.read_csv(uploaded_file)
+        # Suponiendo que el CSV tiene columnas con los mismos nombres que las keys
+        for key in default_values.keys():
+            if key in df.columns:
+                val = df.loc[0, key]
+                # Para booleanos, chequeamos si es 1 o True en el CSV
+                if key == "nueva_incorporacion":
+                    val = bool(val)
+                # Para números, aseguramos int o float
+                else:
+                    try:
+                        val = int(val)
+                    except:
+                        val = float(val)
+                default_values[key] = val
+        st.success("✅ Datos cargados desde CSV correctamente.")
+    except Exception as e:
+        st.error(f"❌ Error leyendo CSV: {e}")
+
+st.markdown("</div>", unsafe_allow_html=True)
+
 # === BLOQUE DE ENTRADA DE DATOS ===
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 
@@ -49,47 +100,47 @@ st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### A. ENTREGAS")
 col_a1, col_a2, col_a3 = st.columns(3)
 with col_a1:
-    entregas = st.number_input("A.1 Entregas totales", min_value=0, step=1)
+    entregas = st.number_input("A.1 Entregas totales", min_value=0, step=1, value=default_values["entregas"])
 with col_a2:
-    entregas_otra_delegacion = st.number_input("A.2 En otra delegación", min_value=0, max_value=entregas, step=1)
+    entregas_otra_delegacion = st.number_input("A.2 En otra delegación", min_value=0, max_value=entregas, step=1, value=default_values["entregas_otra_delegacion"])
 with col_a3:
-    entregas_compartidas = st.number_input("A.3 Entregas compartidas", min_value=0, max_value=entregas, step=1)
-nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
+    entregas_compartidas = st.number_input("A.3 Entregas compartidas", min_value=0, max_value=entregas, step=1, value=default_values["entregas_compartidas"])
+nueva_incorporacion = st.checkbox("¿Es nueva incorporación?", value=default_values["nueva_incorporacion"])
 
 # === B. OTRAS OPERACIONES ===
 st.markdown("### B. OTRAS OPERACIONES")
 col_b1, col_b2 = st.columns(2)
 with col_b1:
-    compras = st.number_input("B.1 Nº de compras", min_value=0, step=1)
+    compras = st.number_input("B.1 Nº de compras", min_value=0, step=1, value=default_values["compras"])
 with col_b2:
-    vh_cambio = st.number_input("B.2 VH como cambio", min_value=0, step=1)
+    vh_cambio = st.number_input("B.2 VH como cambio", min_value=0, step=1, value=default_values["vh_cambio"])
 
 # === C. GARANTÍAS Y FINANCIACIÓN ===
 st.markdown("### C. GARANTÍAS Y FINANCIACIÓN")
 col_c1, col_c2 = st.columns(2)
 with col_c1:
-    garantias_premium = st.number_input("C.1 Nº garantías premium", min_value=0, step=1)
-    facturacion_garantias = st.number_input("C.2 Facturación garantías (€)", min_value=0, step=100)
+    garantias_premium = st.number_input("C.1 Nº garantías premium", min_value=0, step=1, value=default_values["garantias_premium"])
+    facturacion_garantias = st.number_input("C.2 Facturación garantías (€)", min_value=0, step=100, value=default_values["facturacion_garantias"])
 with col_c2:
-    beneficio_financiero = st.number_input("C.3 Beneficio financiero (€)", min_value=0, step=100)
-    beneficio_financiacion_total = st.number_input("C.4 Total beneficio financiación (€)", min_value=0, step=100)
+    beneficio_financiero = st.number_input("C.3 Beneficio financiero (€)", min_value=0, step=100, value=default_values["beneficio_financiero"])
+    beneficio_financiacion_total = st.number_input("C.4 Total beneficio financiación (€)", min_value=0, step=100, value=default_values["beneficio_financiacion_total"])
 
 # === D. BONIFICACIONES POR ENTREGA ===
 st.markdown("### D. BONIFICACIONES POR ENTREGA")
 col_d1, col_d2, col_d3, col_d4 = st.columns(4)
 with col_d1:
-    entregas_con_financiacion = st.number_input("D.1 Con financiación", min_value=0, max_value=entregas, step=1)
+    entregas_con_financiacion = st.number_input("D.1 Con financiación", min_value=0, max_value=entregas, step=1, value=default_values["entregas_con_financiacion"])
 with col_d2:
-    entregas_rapidas = st.number_input("D.2 Entregas rápidas", min_value=0, max_value=entregas, step=1)
+    entregas_rapidas = st.number_input("D.2 Entregas rápidas", min_value=0, max_value=entregas, step=1, value=default_values["entregas_rapidas"])
 with col_d3:
-    entregas_stock_largo = st.number_input("D.3 Stock >150 días", min_value=0, max_value=entregas, step=1)
+    entregas_stock_largo = st.number_input("D.3 Stock >150 días", min_value=0, max_value=entregas, step=1, value=default_values["entregas_stock_largo"])
 with col_d4:
-    entregas_con_descuento = st.number_input("D.4 Con descuento", min_value=0, max_value=entregas, step=1)
-resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1)
+    entregas_con_descuento = st.number_input("D.4 Con descuento", min_value=0, max_value=entregas, step=1, value=default_values["entregas_con_descuento"])
+resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1, value=default_values["resenas"])
 
 # Bonificación por ventas sobre PVP
 st.subheader("🚗 Bonificación por venta sobre precio de tarifa")
-n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1)
+n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1, value=default_values["n_casos_venta_superior"])
 bono_ventas_sobre_pvp = 0
 
 for i in range(n_casos_venta_superior):
@@ -107,11 +158,10 @@ for i in range(n_casos_venta_superior):
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# === BLOQUE DE RESULTADOS ===
-st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-st.markdown("### RESUMEN Y RESULTADO DE LA COMISIÓN")
+# Aquí va el resto de tu código de cálculo y resultados (igual que antes)
+# ... (pone el código de funciones y cálculo aquí)
 
-# Funciones de cálculo
+# -- Copia y pega el código de cálculo y resultados justo debajo de esto --
 
 def calcular_tarifa_entrega(n):
     if n <= 5:
@@ -237,5 +287,6 @@ else:
 st.markdown(f"## ✅ Prima final a cobrar = **{prima_final:.2f} €**")
 
 st.markdown("</div>", unsafe_allow_html=True)
+
 
 
