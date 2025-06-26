@@ -30,7 +30,7 @@ compras = st.number_input("Nº de compras", min_value=0, step=1)
 vh_cambio = st.number_input("VH puesto a la venta como cambio", min_value=0, step=1)
 garantias_premium = st.number_input("Nº de garantías premium vendidas", min_value=0, step=1)
 facturacion_garantias = st.number_input("Facturación total en garantías premium (€)", min_value=0, step=100)
-resenas = st.number_input("Nº de reseñas conseseguidas", min_value=0, step=1)
+resenas = st.number_input("Nº de reseñas conseguidas", min_value=0, step=1)
 beneficio_financiero = st.number_input("Beneficio financiero conseguido (€)", min_value=0, step=100)
 entregas_con_financiacion = st.number_input("Entregas con financiación", min_value=0, max_value=entregas, step=1)
 entregas_rapidas = st.number_input("Entregas rápidas", min_value=0, max_value=entregas, step=1)
@@ -55,39 +55,18 @@ def calcular_tarifa_entrega(n):
     else:
         return 90
 
-def calcular_comision_entregas(total, otra_delegacion, es_nueva):
-    delegacion = total - otra_delegacion
+def calcular_comision_entregas(total_entregas, entregas_otra_delegacion, es_nueva):
+    entregas_normales = total_entregas - entregas_otra_delegacion
     comision = 0
 
-    if es_nueva and total <= 5:
-        # Si es nueva y total ≤5, cobra todo a 20€
-        comision += delegacion * 20
-        comision += otra_delegacion * 10
+    tarifa_total = calcular_tarifa_entrega(total_entregas)
+
+    if es_nueva and total_entregas <= 5:
+        comision += entregas_normales * 20
+        comision += entregas_otra_delegacion * 10
     else:
-        # Entregas de su delegación según tramos reales
-        tramos = [
-            (6, 8, 20),
-            (9, 11, 40),
-            (12, 20, 60),
-            (21, 25, 75),
-            (26, 30, 80),
-            (31, float("inf"), 90),
-        ]
-
-        entregas_restantes = delegacion
-        for inicio, fin, tarifa in tramos:
-            if entregas_restantes >= inicio:
-                cantidad = min(entregas_restantes, fin) - inicio + 1
-                comision += cantidad * tarifa
-
-        # Las entregas en otra delegación se pagan al 50% del tramo total
-        tarifa_total = calcular_tarifa_entrega(total)
-        comision += otra_delegacion * (tarifa_total * 0.5)
-
-        # Bonificación extra si es nueva por entregas 1-5
-        if es_nueva and total > 5:
-            primeras_5 = min(5, delegacion)
-            comision += primeras_5 * 20
+        comision += entregas_normales * tarifa_total
+        comision += entregas_otra_delegacion * (tarifa_total * 0.5)
 
     return comision
 
@@ -171,19 +150,12 @@ prima_total = (
 
 # Penalizaciones
 penalizacion_total = 0
-detalles_penalizaciones = []
-
 if entregas > 0 and (garantias_premium / entregas) < 0.4:
     penalizacion_total += prima_total * 0.10
-    detalles_penalizaciones.append("🔻 Garantías premium <40%")
-
 if entregas > 0 and (resenas / entregas) <= 0.5:
     penalizacion_total += prima_total * 0.10
-    detalles_penalizaciones.append("🔻 Reseñas ≤ 50%")
-
 if beneficio_financiero < 4000:
     penalizacion_total += prima_total * 0.10
-    detalles_penalizaciones.append("🔻 Beneficio financiero <4000 €")
 
 prima_final = prima_total - penalizacion_total
 
@@ -206,11 +178,8 @@ st.write(f"Incentivo por garantías premium: {bono_garantias:.2f} €")
 st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
 
 st.markdown(f"### 💰 Prima total antes de penalizaciones: {prima_total:.2f} €")
-
-if detalles_penalizaciones:
+if penalizacion_total > 0:
     st.subheader("⚠️ Penalizaciones aplicadas")
-    for p in detalles_penalizaciones:
-        st.write(p)
     st.write(f"Total penalizaciones: {penalizacion_total:.2f} €")
 
 st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
