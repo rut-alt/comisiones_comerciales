@@ -3,7 +3,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos generales con bloques diferenciados
+# Estilos generales con bloques diferenciados y colores para resumen
 st.markdown("""
     <style>
     .main {
@@ -30,6 +30,19 @@ st.markdown("""
         border-radius: 10px;
         margin-top: 25px;
         border: 1px solid #cce5ff;
+    }
+    .resumen-item {
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+    .comision {
+        color: #1a3e5f;  /* azul oscuro */
+    }
+    .bonificacion {
+        color: #1c5f1a;  /* verde oscuro */
+    }
+    .penalizacion {
+        color: #8b0000;  /* rojo oscuro */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -112,7 +125,6 @@ st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
 st.markdown("### RESUMEN Y RESULTADO DE LA COMISIÓN")
 
 # Funciones de cálculo
-
 def calcular_tarifa_entrega(n):
     if n <= 5:
         return 20
@@ -205,18 +217,21 @@ if beneficio_financiero < 4000:
 
 prima_final = prima_total - penalizacion_total
 
+# Mostrar desglose de la prima total con colores y negrita
 st.subheader("🧾 Desglose de la Prima Total")
-st.markdown(f"**Comisión** por entregas: {comision_entregas:.2f} €")
-st.markdown(f"**Comisión** por compras: {comision_compras:.2f} €")
-st.markdown(f"**Comisión** por VH cambio: {comision_vh_cambio:.2f} €")
-st.markdown(f"**Comisión** sobre beneficio financiero: {comision_beneficio:.2f} €")
-st.markdown(f"**Bonificación** por financiación: {bono_financiacion:.2f} €")
-st.markdown(f"**Bonificación** por entrega rápida: {bono_rapida:.2f} €")
-st.markdown(f"**Bonificación** por stock >150 días: {bono_stock:.2f} €")
-st.markdown(f"**Bonificación** por garantías premium: {bono_garantias:.2f} €")
-st.markdown(f"**Bonificación** por reseñas: {bono_resenas:.2f} €")
-st.markdown(f"**Bonificación** por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
-st.markdown(f"**Penalización** por entregas con descuento: {penalizacion_descuento:.2f} €")
+st.markdown(f"<p class='resumen-item'><span class='comision'>Comisión</span> por entregas: {comision_entregas:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='comision'>Comisión</span> por compras: {comision_compras:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='comision'>Comisión</span> por VH cambio: {comision_vh_cambio:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='comision'>Comisión</span> sobre beneficio financiero: {comision_beneficio:.2f} €</p>", unsafe_allow_html=True)
+
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por financiación: {bono_financiacion:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por entrega rápida: {bono_rapida:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por stock >150 días: {bono_stock:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por garantías premium: {bono_garantias:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por reseñas: {bono_resenas:.2f} €</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='resumen-item'><span class='bonificacion'>Bonificación</span> por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €</p>", unsafe_allow_html=True)
+
+st.markdown(f"<p class='resumen-item'><span class='penalizacion'>Penalización</span> por entregas con descuento: {penalizacion_descuento:.2f} €</p>", unsafe_allow_html=True)
 
 st.markdown(f"### ✔ Prima total antes de penalizaciones = {prima_total:.2f} €")
 
@@ -232,4 +247,5 @@ if penalizaciones_detalle:
 st.markdown(f"## ✅ Prima final a cobrar = **{prima_final:.2f} €**")
 
 st.markdown("""</div>""", unsafe_allow_html=True)
+
 
