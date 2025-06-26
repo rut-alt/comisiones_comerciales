@@ -181,8 +181,11 @@ comision_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_tota
 bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
 bono_resenas = resenas * 5 if entregas > 0 and resenas / entregas >= 0.5 else 0
 
+# Comisión extra por entregas compartidas
+comision_entregas_compartidas = entregas_compartidas * 30
+
 prima_total = sum([
-    comision_entregas, comision_compras, comision_vh_cambio,
+    comision_entregas, comision_entregas_compartidas, comision_compras, comision_vh_cambio,
     bono_financiacion, bono_rapida, bono_stock, penalizacion_descuento,
     comision_beneficio, bono_garantias, bono_resenas, bono_ventas_sobre_pvp
 ])
@@ -208,6 +211,7 @@ prima_final = prima_total - penalizacion_total
 # Mostrar desglose de la prima total
 st.subheader("🧾 Desglose de la Prima Total")
 st.markdown(f"**Comisión** por entregas: {comision_entregas:.2f} €")
+st.markdown(f"**Comisión** por entregas compartidas: {comision_entregas_compartidas:.2f} €")
 st.markdown(f"**Comisión** por compras: {comision_compras:.2f} €")
 st.markdown(f"**Comisión** por VH cambio: {comision_vh_cambio:.2f} €")
 st.markdown(f"**Comisión** sobre beneficio financiero: {comision_beneficio:.2f} €")
@@ -235,5 +239,6 @@ else:
 st.markdown(f"## ✅ Prima final a cobrar = **{prima_final:.2f} €**")
 
 st.markdown("""</div>""", unsafe_allow_html=True)
+
 
 
