@@ -103,5 +103,8 @@ st.markdown("""</div>""", unsafe_allow_html=True)
 # === BLOQUE DE RESULTADOS ===
 st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
 st.markdown("### RESULTADOS Y RESUMEN")
-# Aquí irían los cálculos y el resumen
+
+# Placeholder para resultados
+st.write("🔧 Aquí se mostrarán los resultados y resumen una vez integrados los cálculos.")
+
 st.markdown("""</div>""", unsafe_allow_html=True)
