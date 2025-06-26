@@ -1,6 +1,25 @@
 import streamlit as st
+from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
+
+# Forzar fondo blanco y texto negro
+st.markdown(
+    """
+    <style>
+    .main {
+        background-color: white !important;
+        color: black !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Mostrar logo empresa
+logo = Image.open("LOGO-HRMOTOR-RGB.png")
+st.image(logo, width=250)
+
 st.title("🧮 Calculadora de Comisiones de Vendedores")
 
 # Entrada de datos generales
@@ -27,37 +46,7 @@ entregas_con_descuento = st.number_input("Entregas con descuento aplicado", min_
 # NUEVA ENTRADA: Importe beneficio de financiación
 beneficio_financiacion_total = st.number_input("Importe total de beneficio por financiación (€)", min_value=0, step=100)
 
-
 # ------------------ FUNCIONES ------------------
-
-def calcular_comision_entregas(total, compartidas, otra_delegacion, es_nueva):
-    comision = 0
-    entregas_normales = total - compartidas - otra_delegacion
-
-    if es_nueva and total <= 5:
-        comision += total * 20
-        return comision
-
-    tramos = [
-        (6, 8, 20),
-        (9, 11, 40),
-        (12, 20, 60),
-        (21, 25, 75),
-        (26, 30, 80),
-        (31, float("inf"), 90),
-    ]
-
-    entregas_restantes = entregas_normales
-    for inicio, fin, tarifa in tramos:
-        if entregas_restantes >= inicio:
-            cantidad = min(entregas_restantes, fin) - inicio + 1
-            comision += cantidad * tarifa
-
-    tarifa_aplicable = calcular_tarifa_entrega(total)
-    comision += compartidas * (tarifa_aplicable * 0.5)
-    comision += otra_delegacion * (tarifa_aplicable * 0.5)
-
-    return comision
 
 def calcular_tarifa_entrega(n):
     if n <= 5:
@@ -74,6 +63,23 @@ def calcular_tarifa_entrega(n):
         return 80
     else:
         return 90
+
+def calcular_comision_entregas(total, compartidas, otra_delegacion, es_nueva):
+    entregas_normales = total - compartidas - otra_delegacion
+
+    if es_nueva and total <= 5:
+        # Tarifa fija para nueva incorporación y hasta 5 coches
+        comision_normales = entregas_normales * 20
+        comision_otros = (compartidas + otra_delegacion) * 10  # mitad de 20
+        return comision_normales + comision_otros
+
+    # Para más de 5 o no nueva incorporación, calcular tarifa según total
+    tarifa = calcular_tarifa_entrega(total)
+
+    comision_normales = entregas_normales * tarifa
+    comision_otros = (compartidas + otra_delegacion) * (tarifa * 0.5)
+
+    return comision_normales + comision_otros
 
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
@@ -104,7 +110,6 @@ def calcular_incentivo_garantias(f):
         return f * 0.08
     else:
         return f * 0.10
-
 
 # ------------------ CÁLCULOS ------------------
 
@@ -186,7 +191,6 @@ if beneficio_financiero < 4000:
 # Resultado final
 prima_final = prima_total - penalizacion_total
 
-
 # ------------------ MOSTRAR RESULTADOS ------------------
 
 st.subheader("💶 Comisiones base")
@@ -215,3 +219,4 @@ if detalles_penalizaciones:
     st.write(f"Total penalizaciones: {penalizacion_total:.2f} €")
 
 st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
+
