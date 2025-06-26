@@ -205,7 +205,7 @@ st.write(f"Comisión por beneficio financiero: {comision_sobre_beneficio:.2f} �
 st.write(f"Incentivo por garantías premium: {bono_garantias:.2f} €")
 st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
 
-st.markdown(f"### ☑ Prima total antes de penalizaciones: {prima_total:.2f} €")
+st.markdown(f"### ✔ Prima total antes de penalizaciones: {prima_total:.2f} €")
 
 if penalizacion_total > 0:
     st.markdown("""
@@ -218,4 +218,4 @@ if penalizacion_total > 0:
 
     st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
 
-st.markdown(f"## ✅ Prima final a cobrar= **{prima_final:.2f} €**")
+st.markdown(f"## ✅ Prima final a cobrar: **{prima_final:.2f} €**")
