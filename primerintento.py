@@ -3,25 +3,6 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# --- Resetear inputs ---
-if 'reset' not in st.session_state:
-    st.session_state.reset = False
-
-def resetear():
-    st.session_state.reset = True
-
-# Botón de resetear
-st.button("🔄 Borrar / Resetear todos los campos", on_click=resetear)
-
-if st.session_state.reset:
-    # Reseteamos todos los inputs a sus valores por defecto
-    for key in st.session_state.keys():
-        # Evitamos resetear la variable reset para evitar bucle
-        if key != 'reset':
-            st.session_state[key] = 0 if isinstance(st.session_state[key], int) or isinstance(st.session_state[key], float) else False
-    st.session_state.reset = False
-    st.experimental_rerun()
-
 # Estilos generales con bloques diferenciados
 st.markdown("""
     <style>
@@ -76,7 +57,7 @@ with col_a3:
 nueva_incorporacion = st.checkbox("¿Es nueva incorporación?", key="nueva_incorporacion")
 
 # === B. OTRAS OPERACIONES ===
-st.markdown("### B. OTRRAS OPERACIONES")
+st.markdown("### B. OTRAS OPERACIONES")
 col_b1, col_b2 = st.columns(2)
 with col_b1:
     compras = st.number_input("B.1 Nº de compras", min_value=0, step=1, key="compras")
@@ -126,6 +107,18 @@ for i in range(n_casos_venta_superior):
 
 st.markdown("""</div>""", unsafe_allow_html=True)
 
+# Botón para resetear todos los campos
+def resetear():
+    for key in st.session_state.keys():
+        if key != 'reset':
+            if isinstance(st.session_state[key], bool):
+                st.session_state[key] = False
+            else:
+                st.session_state[key] = 0
+    st.experimental_rerun()
+
+st.button("🔄 Borrar / Resetear todos los campos", on_click=resetear)
+
 # === BLOQUE DE RESULTADOS ===
 st.markdown("""<div class='result-section'>""", unsafe_allow_html=True)
 st.markdown("### RESUMEN Y RESULTADO DE LA COMISIÓN")
@@ -134,83 +127,44 @@ st.markdown("### RESUMEN Y RESULTADO DE LA COMISIÓN")
 
 def calcular_tarifa_entrega(n):
     if n <= 5:
-        tarifa = 20
-        next_tramo = 6
+        return 20
     elif 6 <= n <= 8:
-        tarifa = 20
-        next_tramo = 9
+        return 20
     elif 9 <= n <= 11:
-        tarifa = 40
-        next_tramo = 12
+        return 40
     elif 12 <= n <= 20:
-        tarifa = 60
-        next_tramo = 21
+        return 60
     elif 21 <= n <= 25:
-        tarifa = 75
-        next_tramo = 26
+        return 75
     elif 26 <= n <= 30:
-        tarifa = 80
-        next_tramo = 31
+        return 80
     else:
-        tarifa = 90
-        next_tramo = None  # Ya máximo
+        return 90
 
-    if next_tramo is not None:
-        faltan_unidades = next_tramo - n
-        euros_faltantes = faltan_unidades * tarifa
-        mensaje = (f"Faltan {faltan_unidades} entregas para el siguiente tramo, "
-                   f"lo que supondría {euros_faltantes} € adicionales aprox.")
-    else:
-        mensaje = "Has alcanzado el tramo máximo de tarifa."
-
-    return tarifa, mensaje
-
-def calcular_tarifa_financiacion(b):
-    # Tramos similares para la financiación (ejemplo simplificado)
-    if b < 5000:
-        tarifa = 0.02
-        next_tramo = 5000
-    elif b < 8000:
-        tarifa = 0.03
-        next_tramo = 8000
-    elif b < 12000:
-        tarifa = 0.04
-        next_tramo = 12000
-    elif b < 17000:
-        tarifa = 0.05
-        next_tramo = 17000
-    elif b < 25000:
-        tarifa = 0.06
-        next_tramo = 25000
-    elif b < 30000:
-        tarifa = 0.07
-        next_tramo = 30000
-    elif b < 50000:
-        tarifa = 0.08
-        next_tramo = 50000
-    else:
-        tarifa = 0.09
-        next_tramo = None
-
-    if next_tramo is not None:
-        faltan_euros = next_tramo - b
-        euros_potenciales = faltan_euros * tarifa
-        mensaje = (f"Faltan {faltan_euros:.2f} € de beneficio financiero para el siguiente tramo, "
-                   f"lo que supondría aprox. {euros_potenciales:.2f} € adicionales.")
-    else:
-        mensaje = "Has alcanzado el tramo máximo en beneficio financiero."
-
-    return tarifa, mensaje
+def siguiente_tramo_entregas(n):
+    # Definimos tramos ordenados para entregar el siguiente tramo y cuantos faltan
+    tramos = [5, 8, 11, 20, 25, 30]
+    for tramo in tramos:
+        if n < tramo:
+            return tramo, tramo - n
+    return None, 0  # Ya en máximo tramo
 
 def calcular_comision_entregas(total, otras, nueva):
     normales = total - otras
-    tarifa, _ = calcular_tarifa_entrega(total)
+    tarifa = calcular_tarifa_entrega(total)
     if nueva and total <= 5:
         return normales * 20 + otras * 10
     elif not nueva and total <= 5:
         return 0
     else:
         return normales * tarifa + otras * (tarifa * 0.5)
+
+def siguiente_tramo_beneficio(b):
+    tramos = [5000, 8000, 12000, 17000, 25000, 30000, 50000]
+    for tramo in tramos:
+        if b < tramo:
+            return tramo, tramo - b
+    return None, 0
 
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
@@ -243,9 +197,6 @@ def calcular_incentivo_garantias(f):
         return f * 0.10
 
 # Cálculos
-tarifa, mensaje_tarifa = calcular_tarifa_entrega(entregas)
-tarifa_financiacion, mensaje_financiacion = calcular_tarifa_financiacion(beneficio_financiacion_total)
-
 comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
 comision_compras = compras * 60
 comision_vh_cambio = vh_cambio * 30
@@ -256,8 +207,9 @@ penalizacion_descuento = entregas_con_descuento * -15
 comision_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_total)
 bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
 bono_resenas = resenas * 5 if entregas > 0 and resenas / entregas >= 0.5 else 0
+
+# Comisión extra por entregas compartidas
 comision_entregas_compartidas = entregas_compartidas * 30
-bono_ventas_sobre_pvp = bono_ventas_sobre_pvp
 
 prima_total = sum([
     comision_entregas, comision_entregas_compartidas, comision_compras, comision_vh_cambio,
@@ -265,6 +217,7 @@ prima_total = sum([
     comision_beneficio, bono_garantias, bono_resenas, bono_ventas_sobre_pvp
 ])
 
+# Penalizaciones
 penalizacion_total = 0
 penalizaciones_detalle = []
 if entregas > 0 and garantias_premium / entregas < 0.4:
@@ -299,10 +252,6 @@ st.markdown(f"**Penalización** por entregas con descuento: {penalizacion_descue
 
 st.markdown(f"### ✔ Prima total antes de penalizaciones = {prima_total:.2f} €")
 
-# Mostrar mensajes de próximos escalados
-st.info(mensaje_tarifa)
-st.info(mensaje_financiacion)
-
 if penalizaciones_detalle:
     st.markdown("""
         <div style='background-color: #ffcccc; padding: 15px; border: 2px solid red; border-radius: 10px;'>
@@ -315,4 +264,19 @@ else:
     st.info("No se aplican penalizaciones.")
 
 st.markdown(f"## ✅ Prima final a cobrar = **{prima_final:.2f} €**")
+
+# Mensajes de progreso hacia siguiente tramo
+
+next_entrega, faltan_entregas = siguiente_tramo_entregas(entregas)
+if next_entrega is not None:
+    st.info(f"🛠️ Te faltan {faltan_entregas} entregas para alcanzar el siguiente tramo de comisión ({next_entrega} entregas).")
+else:
+    st.success("🎉 Has alcanzado el máximo tramo de entregas.")
+
+next_beneficio, faltan_beneficio = siguiente_tramo_beneficio(beneficio_financiacion_total)
+if next_beneficio is not None:
+    st.info(f"💰 Te faltan {faltan_beneficio:.2f} € de beneficio para alcanzar el siguiente tramo de comisión ({next_beneficio} €).")
+else:
+    st.success("🎉 Has alcanzado el máximo tramo de beneficio financiero.")
+
 st.markdown("""</div>""", unsafe_allow_html=True)
