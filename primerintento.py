@@ -3,7 +3,7 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos
+# Estilos CSS
 st.markdown("""
     <style>
     .input-section { background-color: #2b344d; color: white; padding:20px; border-radius:10px; margin-bottom:25px; }
@@ -11,13 +11,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Función reset
+# Reset
 def resetear():
     for key in list(st.session_state.keys()):
         if not key.startswith("logo"):
             del st.session_state[key]
     st.experimental_rerun()
 
+# Botón lateral para resetear
 st.sidebar.button("🔄 Resetear formulario", on_click=resetear)
 
 # Logo y cabecera
@@ -25,165 +26,176 @@ try:
     logo = Image.open("LOGO-HRMOTOR-RGB.png")
 except:
     logo = None
-col1, col2 = st.columns([3,1])
+col1, col2 = st.columns([3, 1])
 with col1:
     st.title("CALCULADORA DE COMISIONES VENDEDORES")
 with col2:
-    if logo: st.image(logo, width=150)
+    if logo:
+        st.image(logo, width=150)
 
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 
-# A. ENTREGAS
+# === A. ENTREGAS ===
 st.subheader("A. Entregas")
-e = st.number_input("A.1 Entregas totales", min_value=0, step=1, key="entregas")
-st.number_input("A.2 En otra delegación", min_value=0, max_value=st.session_state.get("entregas",0), step=1, key="entregas_otra_delegacion")
-st.number_input("A.3 Entregas compartidas", min_value=0, max_value=st.session_state.get("entregas",0), step=1, key="entregas_compartidas")
-nueva = st.checkbox("¿Nueva incorporación?", key="nueva")
+col_a1, col_a2, col_a3 = st.columns(3)
+with col_a1:
+    e = st.number_input("Totales", min_value=0, step=1, key="entregas")
+with col_a2:
+    st.number_input("En otra delegación", min_value=0, max_value=e, step=1, key="entregas_otra_delegacion")
+with col_a3:
+    st.number_input("Compartidas", min_value=0, max_value=e, step=1, key="entregas_compartidas")
+st.checkbox("¿Nueva incorporación?", key="nueva")
 
-# Expander entregas
-with st.expander("ℹ️ Escalado de entregas"):
-    niveles_e = [(5,20),(8,20),(11,40),(20,60),(25,75),(30,80),(float('inf'),90)]
-    nivel_sig_e = None
-    for i,(lim,tar) in enumerate(niveles_e):
+with st.expander("ℹ️ Escalado entregas"):
+    niveles = [(5, 20), (8, 20), (11, 40), (20, 60), (25, 75), (30, 80), (float('inf'), 90)]
+    for i, (lim, tarifa) in enumerate(niveles):
         if e <= lim:
-            nivel_sig_e = niveles_e[i+1] if i+1<len(niveles_e) else None
-            st.write(f"Nivel actual: hasta {lim} → {tar}€/unidad")
+            st.write(f"Nivel actual: hasta {lim} → {tarifa}€/unidad")
+            if i + 1 < len(niveles):
+                falta = niveles[i+1][0] - e
+                st.info(f"Faltan {falta} entregas para llegar al siguiente tramo ({niveles[i+1][1]}€/unidad)")
+            else:
+                st.success("Has alcanzado el nivel máximo de entregas ✅")
             break
-    if nivel_sig_e:
-        falt_e = nivel_sig_e[0] - e
-        st.write(f"Faltan {falt_e} entregas para el siguiente nivel ({nivel_sig_e[1]}€/unidad)")
-    else:
-        st.success("Has alcanzado el nivel máximo de entregas ✅")
 
-# B. OPERACIONES
+# === B. OPERACIONES ===
 st.subheader("B. Otras operaciones")
-st.number_input("B.1 Nº de compras", min_value=0, step=1, key="compras")
-st.number_input("B.2 VH como cambio", min_value=0, step=1, key="vh_cambio")
+col_b1, col_b2 = st.columns(2)
+with col_b1:
+    st.number_input("Compras", min_value=0, step=1, key="compras")
+with col_b2:
+    st.number_input("VH como cambio", min_value=0, step=1, key="vh_cambio")
 
-# C. GARANTIAS & FINANCIACIÓN
+# === C. GARANTÍAS Y FINANCIACIÓN ===
 st.subheader("C. Garantías y financiación")
-st.number_input("C.1 Nº garantías premium", min_value=0, step=1, key="garantias_premium")
-st.number_input("C.2 Facturas garantías (€)", min_value=0, step=100, key="fact_garantias")
-b = st.number_input("C.3 Beneficio financiero (€)", min_value=0, step=100, key="benef_fin")
-st.number_input("C.4 Beneficio financiación total (€)", min_value=0, step=100, key="benef_fin_tot")
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    st.number_input("Garantías premium", min_value=0, step=1, key="garantias_premium")
+    st.number_input("Facturación garantías (€)", min_value=0, step=100, key="fact_garantias")
+with col_c2:
+    bf = st.number_input("Beneficio financiero (€)", min_value=0, step=100, key="benef_fin")
+    st.number_input("Beneficio financiación total (€)", min_value=0, step=100, key="benef_fin_tot")
 
-# Expander financiación
-with st.expander("ℹ️ Escalado de financiación"):
-    niveles_b = [(5000,0.02),(8000,0.03),(12000,0.04),(17000,0.05),(25000,0.06),(30000,0.07),(50000,0.08),(float('inf'),0.09)]
-    nivel_sig_b = None
-    for i,(lim,pct) in enumerate(niveles_b):
-        if b <= lim:
-            nivel_sig_b = niveles_b[i+1] if i+1<len(niveles_b) else None
-            st.write(f"Nivel actual: hasta {lim} → {pct*100:.1f}%")
+with st.expander("ℹ️ Escalado beneficio financiero"):
+    niveles_bf = [(5000, 0.02), (8000, 0.03), (12000, 0.04), (17000, 0.05),
+                  (25000, 0.06), (30000, 0.07), (50000, 0.08), (float('inf'), 0.09)]
+    for i, (lim, pct) in enumerate(niveles_bf):
+        if bf <= lim:
+            st.write(f"Nivel actual: hasta {lim}€ → {pct*100:.1f}%")
+            if i + 1 < len(niveles_bf):
+                falta_bf = niveles_bf[i+1][0] - bf
+                st.info(f"Faltan {falta_bf:.2f} € para el siguiente tramo ({niveles_bf[i+1][1]*100:.1f}%)")
+            else:
+                st.success("Has alcanzado el nivel máximo ✅")
             break
-    if nivel_sig_b:
-        falt_b = nivel_sig_b[0] - b
-        st.write(f"Faltan {falt_b:.2f} € para el siguiente nivel ({nivel_sig_b[1]*100:.1f}%)")
-    else:
-        st.success("Has alcanzado el nivel máximo de financiación ✅")
 
-# D. BONIFICACIONES
+# === D. BONIFICACIONES ===
 st.subheader("D. Bonificaciones por entrega")
-st.number_input("D.1 Con financiación", min_value=0, max_value=st.session_state.get("entregas",0), key="ent_fin")
-st.number_input("D.2 Entregas rápidas", min_value=0, max_value=st.session_state.get("entregas",0), key="ent_rap")
-st.number_input("D.3 Stock >150 días", min_value=0, max_value=st.session_state.get("entregas",0), key="ent_stock")
-st.number_input("D.4 Con descuento", min_value=0, max_value=st.session_state.get("entregas",0), key="ent_desc")
-res = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1, key="resenas")
+col_d1, col_d2, col_d3, col_d4 = st.columns(4)
+with col_d1:
+    st.number_input("Con financiación", min_value=0, max_value=e, key="ent_fin")
+with col_d2:
+    st.number_input("Entregas rápidas", min_value=0, max_value=e, key="ent_rap")
+with col_d3:
+    st.number_input("Stock >150 días", min_value=0, max_value=e, key="ent_stock")
+with col_d4:
+    st.number_input("Con descuento", min_value=0, max_value=e, key="ent_desc")
+res = st.number_input("Nº de reseñas", min_value=0, step=1, key="resenas")
 
-# E. Bonus PVP
+# === E. VENTA SOBRE PVP ===
 st.subheader("E. Bonificación por PVP")
-n_pvp = st.number_input("¿Cuántos casos por encima del PVP?", min_value=0, step=1, key="n_pvp")
+n_pvp = st.number_input("Nº ventas por encima de PVP", min_value=0, step=1, key="n_pvp")
 bono_pvp = 0
 for i in range(n_pvp):
-    p = st.number_input(f"PVP coche {i+1}", min_value=0, step=100, key=f"pvp{i}")
-    v = st.number_input(f"Venta coche {i+1}", min_value=0, step=100, key=f"vta{i}")
-    if v>p:
-        bono = (v-p)*0.05
+    pvp = st.number_input(f"PVP coche {i+1}", min_value=0, step=100, key=f"pvp{i}")
+    venta = st.number_input(f"Venta coche {i+1}", min_value=0, step=100, key=f"venta{i}")
+    if venta > pvp:
+        bono = (venta - pvp) * 0.05
         bono_pvp += bono
         st.success(f"Bono coche {i+1}: {bono:.2f}€")
+    else:
+        st.warning("❌ Sin bonificación (venta ≤ PVP)")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Funciones cálculo
-def tarifa_ent(n):
-    if n<=5: return 20
-    if n<=8: return 20
-    if n<=11: return 40
-    if n<=20: return 60
-    if n<=25: return 75
-    if n<=30: return 80
+# === CÁLCULOS ===
+def tarifa_entregas(n):
+    if n <= 5: return 20
+    elif n <= 8: return 20
+    elif n <= 11: return 40
+    elif n <= 20: return 60
+    elif n <= 25: return 75
+    elif n <= 30: return 80
     return 90
 
-def com_ent(n,o,nw):
-    t = tarifa_ent(n)
-    norm = n - o
-    if nw and n<=5: return norm*20 + o*10
-    if not nw and n<=5: return 0
-    return norm*t + o*(t*0.5)
+def com_entregas(n, otras, nueva):
+    normales = n - otras
+    tarifa = tarifa_entregas(n)
+    if nueva and n <= 5: return normales * 20 + otras * 10
+    if not nueva and n <= 5: return 0
+    return normales * tarifa + otras * (tarifa * 0.5)
 
-def com_ben(b):
-    if b<=5000: return b*0.02
-    if b<=8000: return b*0.03
-    if b<=12000: return b*0.04
-    if b<=17000: return b*0.05
-    if b<=25000: return b*0.06
-    if b<=30000: return b*0.07
-    if b<=50000: return b*0.08
-    return b*0.09
+def com_beneficio(b):
+    if b <= 5000: return b * 0.02
+    elif b <= 8000: return b * 0.03
+    elif b <= 12000: return b * 0.04
+    elif b <= 17000: return b * 0.05
+    elif b <= 25000: return b * 0.06
+    elif b <= 30000: return b * 0.07
+    elif b <= 50000: return b * 0.08
+    return b * 0.09
 
-def inc_gar(f):
-    if f<=4500: return f*0.03
-    if f<=8000: return f*0.05
-    if f<=12000: return f*0.06
-    if f<=17000: return f*0.08
-    return f*0.10
+def inc_garantias(f):
+    if f <= 4500: return f * 0.03
+    elif f <= 8000: return f * 0.05
+    elif f <= 12000: return f * 0.06
+    elif f <= 17000: return f * 0.08
+    return f * 0.10
 
-# Valores
-ce = com_ent(e, st.session_state.get("entregas_otra_delegacion",0), st.session_state.get("nueva",False))
-cc = st.session_state.get("compras",0)*60
-ch = st.session_state.get("vh_cambio",0)*30
-bf = com_ben(st.session_state.get("benef_fin_tot",0))
-bg = inc_gar(st.session_state.get("fact_garantias",0))
-br = res*5 if e>0 and res/e>=0.5 else 0
-cef = st.session_state.get("ent_fin",0)*10
-cer = st.session_state.get("ent_rap",0)*5
-ces = st.session_state.get("ent_stock",0)*5
-ced = st.session_state.get("ent_desc",0)*-15
-cec = st.session_state.get("entregas_compartidas",0)*30
+# Totales
+ce = com_entregas(e, st.session_state["entregas_otra_delegacion"], st.session_state["nueva"])
+cec = st.session_state["entregas_compartidas"] * 30
+cc = st.session_state["compras"] * 60
+ch = st.session_state["vh_cambio"] * 30
+cf = com_beneficio(st.session_state["benef_fin_tot"])
+cg = inc_garantias(st.session_state["fact_garantias"])
+cr = res * 5 if e > 0 and res / e >= 0.5 else 0
+bf1 = st.session_state["ent_fin"] * 10
+bf2 = st.session_state["ent_rap"] * 5
+bf3 = st.session_state["ent_stock"] * 5
+pen_desc = st.session_state["ent_desc"] * -15
 
-prima = sum([ce,cec,cc,ch,bf,bg,br,cef,cer,ces,ced,bono_pvp])
+prima = sum([ce, cec, cc, ch, cf, cg, cr, bf1, bf2, bf3, pen_desc, bono_pvp])
 
 # Penalizaciones
-pen = 0
-det = []
-if e>0 and st.session_state.get("garantias_premium",0)/e<0.4:
-    p = prima*0.1; pen+=p; det.append(("Garantías<40%",p))
-if e>0 and res/e<=0.5:
-    p = prima*0.1; pen+=p; det.append(("Reseñas≤50%",p))
-if st.session_state.get("benef_fin",0)<4000:
-    p = prima*0.1; pen+=p; det.append(("Beneficio<4000€",p))
+penal = 0
+if e > 0 and st.session_state["garantias_premium"] / e < 0.4:
+    penal += prima * 0.1
+if e > 0 and res / e <= 0.5:
+    penal += prima * 0.1
+if st.session_state["benef_fin"] < 4000:
+    penal += prima * 0.1
+prima_final = prima - penal
 
-final = prima - pen
-
-# Resultados
+# === RESULTADOS ===
 st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-st.subheader("🧾 Resumen")
-st.write(f"- Comisión entregas: {ce:.2f}€")
-st.write(f"- Entregas compartidas: {cec:.2f}€")
-st.write(f"- Compras: {cc:.2f}€")
-st.write(f"- VH cambio: {ch:.2f}€")
-st.write(f"- Sobre beneficio: {bf:.2f}€")
-st.write(f"- Garantías premium: {bg:.2f}€")
-st.write(f"- Reseñas: {br:.2f}€")
-st.write(f"- Financiación entrega: {cef:.2f}€")
-st.write(f"- Entrega rápida: {cer:.2f}€")
-st.write(f"- Stock largo: {ces:.2f}€")
-st.write(f"- Penalización descuento: {ced:.2f}€")
-st.write(f"- Bono PVP: {bono_pvp:.2f}€")
-st.write(f"**Prima total antes penalizaciones**: {prima:.2f}€")
-if det:
-    st.warning("⚠️ Penalizaciones:")
-    for motivo,v in det:
-        st.write(f"• {motivo}: -{v:.2f}€")
-st.write(f"## ✅ Prima final: {final:.2f}€")
+st.subheader("🧾 Resultado final")
+st.markdown(f"- Comisión entregas: {ce:.2f} €")
+st.markdown(f"- Entregas compartidas: {cec:.2f} €")
+st.markdown(f"- Compras: {cc:.2f} €")
+st.markdown(f"- VH cambio: {ch:.2f} €")
+st.markdown(f"- Financiación total: {cf:.2f} €")
+st.markdown(f"- Garantías: {cg:.2f} €")
+st.markdown(f"- Reseñas: {cr:.2f} €")
+st.markdown(f"- Bonos (fin, rápida, stock): {bf1+bf2+bf3:.2f} €")
+st.markdown(f"- Bonificación PVP: {bono_pvp:.2f} €")
+st.markdown(f"- Penalización descuento: {pen_desc:.2f} €")
+st.markdown(f"**Prima total antes de penalizaciones: {prima:.2f} €**")
+
+if penal > 0:
+    st.error(f"Penalizaciones aplicadas: -{penal:.2f} €")
+else:
+    st.success("✅ Sin penalizaciones")
+
+st.markdown(f"## ✅ Prima final: **{prima_final:.2f} €**")
 st.markdown("</div>", unsafe_allow_html=True)
