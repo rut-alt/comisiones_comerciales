@@ -3,23 +3,17 @@ from PIL import Image
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos CSS
-st.markdown("""
-    <style>
-    .input-section { background-color: #2b344d; color: white; padding:20px; border-radius:10px; margin-bottom:25px; }
-    .result-section { background-color: #2b344d; color: white; padding:20px; border-radius:10px; margin-top:25px; }
-    </style>
-""", unsafe_allow_html=True)
-
-# Reset
+# --- Botón de Reset seguro ---
 def resetear():
     for key in list(st.session_state.keys()):
-        if not key.startswith("logo"):
+        if not key.startswith("logo"):  # si usas claves tipo 'logo', puedes excluirlas
             del st.session_state[key]
     st.experimental_rerun()
 
-# Botón lateral para resetear
-st.sidebar.button("🔄 Resetear formulario", on_click=resetear)
+# Mostrar botón arriba a la derecha
+col_reset, _ = st.columns([1, 6])
+with col_reset:
+    st.button("🔄 Resetear formulario", on_click=resetear)
 
 # Logo y cabecera
 try:
