@@ -169,12 +169,23 @@ prima = sum([ce, cec, cc, ch, cf, cg, cr, bf1, bf2, bf3, pen_desc, bono_pvp])
 
 # Penalizaciones
 penal = 0
+detalles_penal = []
+
 if e > 0 and st.session_state["garantias_premium"] / e < 0.4:
-    penal += prima * 0.1
+    p = prima * 0.1
+    penal += p
+    detalles_penal.append(f"- 📉 Garantías premium < 40% de entregas → -{p:.2f} €")
+
 if e > 0 and res / e <= 0.5:
-    penal += prima * 0.1
+    p = prima * 0.1
+    penal += p
+    detalles_penal.append(f"- 📉 Reseñas ≤ 50% de entregas → -{p:.2f} €")
+
 if st.session_state["benef_fin"] < 4000:
-    penal += prima * 0.1
+    p = prima * 0.1
+    penal += p
+    detalles_penal.append(f"- 📉 Beneficio financiero < 4000 € → -{p:.2f} €")
+
 prima_final = prima - penal
 
 # === RESULTADOS ===
@@ -193,7 +204,9 @@ st.markdown(f"- Penalización descuento: {pen_desc:.2f} €")
 st.markdown(f"**Prima total antes de penalizaciones: {prima:.2f} €**")
 
 if penal > 0:
-    st.error(f"Penalizaciones aplicadas: -{penal:.2f} €")
+    st.error(f"Total penalizaciones: -{penal:.2f} €")
+    for d in detalles_penal:
+        st.markdown(d)
 else:
     st.success("✅ Sin penalizaciones")
 
