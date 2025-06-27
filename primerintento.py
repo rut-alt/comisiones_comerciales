@@ -250,5 +250,9 @@ if penalizaciones_detalle:
     """, unsafe_allow_html=True)
     for motivo, valor in penalizaciones_detalle:
         st.markdown(f"<p>🔸 <strong>{motivo}</strong>: -{valor:.2f} €</p>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>Total penalizaciones
+    st.markdown(f"<p><strong>Total penalizaciones: -{penalizacion_total:.2f} €</strong></p></div>", unsafe_allow_html=True)
+else:
+    st.info("No se aplican penalizaciones.")
 
+st.markdown(f"## ✅ Prima final a cobrar = **{prima_final:.2f} €**")
+st.markdown("""</div>""", unsafe_allow_html=True)
