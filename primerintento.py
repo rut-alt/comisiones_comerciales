@@ -174,12 +174,12 @@ detalles_penal = []
 if e > 0 and st.session_state["garantias_premium"] / e < 0.4:
     p = prima * 0.1
     penal += p
-    detalles_penal.append(f"- 📉 Garantías premium < 40% de entregas → -{p:.2f} €")
+    detalles_penal.append(f"- 📉 Garantías premium < 40% → -{p:.2f} €")
 
 if e > 0 and res / e <= 0.5:
     p = prima * 0.1
     penal += p
-    detalles_penal.append(f"- 📉 Reseñas ≤ 50% de entregas → -{p:.2f} €")
+    detalles_penal.append(f"- 📉 Reseñas ≤ 50% → -{p:.2f} €")
 
 if st.session_state["benef_fin"] < 4000:
     p = prima * 0.1
@@ -204,9 +204,9 @@ st.markdown(f"- Penalización descuento: {pen_desc:.2f} €")
 st.markdown(f"**Prima total antes de penalizaciones: {prima:.2f} €**")
 
 if penal > 0:
-    st.error(f"Total penalizaciones: -{penal:.2f} €")
-    for d in detalles_penal:
-        st.markdown(d)
+    st.error(f"Penalizaciones aplicadas: -{penal:.2f} €")
+    for p in detalles_penal:
+        st.markdown(p)
 else:
     st.success("✅ Sin penalizaciones")
 
