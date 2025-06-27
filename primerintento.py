@@ -11,12 +11,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Reset
+# Reset seguro
 def resetear():
-    for key in list(st.session_state.keys()):
-        if not key.startswith("logo"):
-            del st.session_state[key]
-    st.experimental_rerun()
+    keys_to_keep = [k for k in st.session_state if k.startswith("logo")]
+    st.session_state.clear()
+    for k in keys_to_keep:
+        st.session_state[k] = True
 
 # Botón lateral para resetear
 st.sidebar.button("🔄 Resetear formulario", on_click=resetear)
@@ -186,6 +186,14 @@ if st.session_state["benef_fin"] < 4000:
     penal += p
     detalles_penal.append(f"- 📉 Beneficio financiero < 4000 € → -{p:.2f} €")
 
+if prima == 0:
+    if e > 0 and st.session_state["garantias_premium"] / e < 0.4:
+        detalles_penal.append("- ⚠️ Garantías premium < 40% (no aplica penalización por prima = 0)")
+    if e > 0 and res / e <= 0.5:
+        detalles_penal.append("- ⚠️ Reseñas ≤ 50% (no aplica penalización por prima = 0)")
+    if st.session_state["benef_fin"] < 4000:
+        detalles_penal.append("- ⚠️ Beneficio financiero < 4000 € (no aplica penalización por prima = 0)")
+
 prima_final = prima - penal
 
 # === RESULTADOS ===
@@ -203,7 +211,7 @@ st.markdown(f"- Bonificación PVP: {bono_pvp:.2f} €")
 st.markdown(f"- Penalización descuento: {pen_desc:.2f} €")
 st.markdown(f"**Prima total antes de penalizaciones: {prima:.2f} €**")
 
-if penal > 0:
+if detalles_penal:
     st.error(f"Penalizaciones aplicadas: -{penal:.2f} €")
     for p in detalles_penal:
         st.markdown(p)
