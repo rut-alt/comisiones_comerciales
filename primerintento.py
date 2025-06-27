@@ -60,17 +60,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # === CABECERA ===
-logo = Image.open("LOGO-HRMOTOR-RGB.png")
+try:
+    logo = Image.open("LOGO-HRMOTOR-RGB.png")
+except FileNotFoundError:
+    logo = None
+
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
 with col2:
-    st.image(logo, width=250)
+    if logo:
+        st.image(logo, width=250)
 
 # === BLOQUE DE ENTRADA ===
 st.markdown("""<div class='input-section'>""", unsafe_allow_html=True)
 
-# === A. ENTREGAS ===
+# A. ENTREGAS
 st.markdown("### A. ENTREGAS")
 col_a1, col_a2, col_a3 = st.columns(3)
 with col_a1:
@@ -80,7 +85,6 @@ with col_a2:
 with col_a3:
     entregas_compartidas = st.number_input("A.3 Entregas compartidas", min_value=0, max_value=entregas, step=1)
 
-# Escalado de entregas
 faltan = siguiente_tramo_entregas(entregas)
 if faltan > 0:
     st.info(f"📊 Te faltan **{faltan} entregas** para subir al siguiente escalado de comisión.")
@@ -100,7 +104,7 @@ with st.expander("📊 Ver escalado de comisiones por entregas"):
 
 nueva_incorporacion = st.checkbox("¿Es nueva incorporación?")
 
-# === B. OTRAS OPERACIONES ===
+# B. OTRAS OPERACIONES
 st.markdown("### B. OTRAS OPERACIONES")
 col_b1, col_b2 = st.columns(2)
 with col_b1:
@@ -108,7 +112,7 @@ with col_b1:
 with col_b2:
     vh_cambio = st.number_input("B.2 VH como cambio", min_value=0, step=1)
 
-# === C. GARANTÍAS Y FINANCIACIÓN ===
+# C. GARANTÍAS Y FINANCIACIÓN
 st.markdown("### C. GARANTÍAS Y FINANCIACIÓN")
 col_c1, col_c2 = st.columns(2)
 with col_c1:
@@ -136,7 +140,7 @@ with st.expander("📈 Ver escalado de comisión sobre beneficio financiero"):
     - Más de 50.000 € → 9%  
     """)
 
-# === D. BONIFICACIONES POR ENTREGA ===
+# D. BONIFICACIONES POR ENTREGA
 st.markdown("### D. BONIFICACIONES POR ENTREGA")
 col_d1, col_d2, col_d3, col_d4 = st.columns(4)
 with col_d1:
@@ -149,7 +153,7 @@ with col_d4:
     entregas_con_descuento = st.number_input("D.4 Con descuento", min_value=0, max_value=entregas, step=1)
 resenas = st.number_input("D.5 Nº de reseñas conseguidas", min_value=0, step=1)
 
-# === E. BONUS POR PVP ===
+# E. BONUS POR PVP
 st.subheader("🚗 Bonificación por venta sobre precio de tarifa")
 n_casos_venta_superior = st.number_input("¿Cuántas ventas han sido por encima del PVP?", min_value=0, step=1)
 bono_ventas_sobre_pvp = 0
@@ -177,5 +181,52 @@ def calcular_tarifa_entrega(n):
     elif 9 <= n <= 11:
         return 40
     elif 12 <= n <= 20:
-        return 
+        return 60
+    elif 21 <= n <= 25:
+        return 75
+    elif 26 <= n <= 30:
+        return 80
+    else:
+        return 90
+
+# Ejemplo de cálculo de comisión por entregas:
+tarifa_entrega = calcular_tarifa_entrega(entregas)
+comision_entregas = entregas * tarifa_entrega
+
+# Ejemplo simple de comisión sobre beneficio financiero (según tramo):
+def porcentaje_beneficio(b):
+    if b <= 5000:
+        return 0.02
+    elif b <= 8000:
+        return 0.03
+    elif b <= 12000:
+        return 0.04
+    elif b <= 17000:
+        return 0.05
+    elif b <= 25000:
+        return 0.06
+    elif b <= 30000:
+        return 0.07
+    elif b <= 50000:
+        return 0.08
+    else:
+        return 0.09
+
+comision_beneficio = beneficio_financiacion_total * porcentaje_beneficio(beneficio_financiacion_total)
+
+# Suma total de comisiones (puedes agregar más conceptos)
+comision_total = comision_entregas + comision_beneficio + bono_ventas_sobre_pvp
+
+st.markdown("<div class='result-section'>", unsafe_allow_html=True)
+st.markdown("## Resultados")
+st.write(f"Comisión por entregas: {comision_entregas:.2f} €")
+st.write(f"Comisión por beneficio financiero: {comision_beneficio:.2f} €")
+st.write(f"Bonificación por ventas sobre PVP: {bono_ventas_sobre_pvp:.2f} €")
+st.markdown(f"### Comisión Total: {comision_total:.2f} €")
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Botón para resetear formulario
+if st.button("Borrar datos y reiniciar formulario"):
+    reset_form()
+
 
