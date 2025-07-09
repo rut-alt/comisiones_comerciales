@@ -47,25 +47,14 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-import re
-
+# Limpieza correcta del campo monetario (formato europeo)
 def limpiar_eur(valor):
     try:
-        if pd.isna(valor):
-            return 0.0
-        s = str(valor)
-        s = re.sub(r"[^\d,\.]", "", s)  # Elimina todo excepto dígitos, puntos y comas
-        if s.count(",") == 1:
-            # Formato europeo típico: 12.345,67
-            s = s.replace(".", "")  # Elimina separadores de miles
-            s = s.replace(",", ".")  # Convierte coma decimal a punto
-        elif s.count(".") == 1 and s.count(",") == 0:
-            # Formato inglés (12,345.67) por si acaso
-            s = s.replace(",", "")  # Elimina separadores de miles
-        return float(s)
+        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
+        s = s.replace(".", "").replace(",", ".")
+        return float(s) if s else 0.0
     except:
         return 0.0
-
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
@@ -316,6 +305,39 @@ if uploaded_file is not None:
         st.markdown("---")
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+    st.markdown("### 📂 Cargar archivo Excel con stock >150 por comercial")
+    uploaded_stock_file = st.file_uploader("Sube un archivo .xlsx con stock >150", type=["xlsx"], key="stock_uploader")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if uploaded_stock_file is not None:
+        df_stock = pd.read_excel(uploaded_stock_file)
+        df_stock.columns = df_stock.columns.str.strip()
+
+        # Se asume que hay columnas 'ownername' y 'stock' o similar para filtrar >150
+        if "ownername" in df_stock.columns and "stock" in df_stock.columns:
+            df_stock["stock"] = pd.to_numeric(df_stock["stock"], errors="coerce").fillna(0)
+            stock_mayor_150 = df_stock[df_stock["stock"] > 150].groupby("ownername")["stock"].count().reset_index()
+            stock_mayor_150.columns = ["ownername", "stock_mayor_150"]
+
+            # Mostrar stock >150 filtrado según la selección comercial (si no "Todos")
+            if seleccion_comercial != "Todos":
+                stock_filtrado = stock_mayor_150[stock_mayor_150["ownername"] == seleccion_comercial]
+            else:
+                stock_filtrado = stock_mayor_150
+
+            st.markdown("<div class='result-section'>", unsafe_allow_html=True)
+            st.markdown("### Stock >150 unidades por Comercial")
+
+            if not stock_filtrado.empty:
+                for _, row_stock in stock_filtrado.iterrows():
+                    st.markdown(f"- Comercial: **{row_stock['ownername']}** → Stock >150 unidades: {row_stock['stock_mayor_150']}")
+            else:
+                st.markdown("No hay datos de stock >150 para la selección actual.")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.warning("El archivo de stock debe contener las columnas 'ownername' y 'stock'.")
 
 else:
     st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
