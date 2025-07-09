@@ -5,8 +5,17 @@ st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
 def limpiar_eur(valor):
     try:
-        texto = str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip()
-        return float(texto) if texto else 0.0
+        s = str(valor).strip()
+        s = s.replace("EUR", "").strip()
+        s = s.replace(" ", "")
+        # Manejar múltiples puntos (separadores de miles)
+        if s.count(".") > 1:
+            partes = s.split(".")
+            s = "".join(partes[:-1]) + "." + partes[-1]
+        else:
+            s = s.replace(".", "")
+        s = s.replace(",", ".")
+        return float(s)
     except:
         return 0.0
 
@@ -122,17 +131,13 @@ uploaded_file = st.file_uploader("Sube un archivo Excel (.xlsx)", type=["xlsx"])
 if uploaded_file:
     df_raw = pd.read_excel(uploaded_file)
 
-    # Limpiar datos
+    # Limpieza y formateo
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
     df_raw["Delegación"] = df_raw["Delegación"].astype(str).str.strip().str.upper()
     df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].astype(str).str.strip()
 
-    # Eliminar duplicados para evitar suma errónea
+    # Evitar duplicados
     df_raw = df_raw.drop_duplicates()
-
-    # Mostrar datos para Sebastián Machado para depurar
-    st.markdown("### Datos para Sebastián Machado (antes de agrupar)")
-    st.dataframe(df_raw[df_raw["Opportunity Owner"]=="Sebastian Machado"][["Beneficio financiación comercial", "Delegación", "Opportunity Owner"]])
 
     # Agrupar datos para resumen
     resumen = df_raw.groupby(["Delegación", "Opportunity Owner"], dropna=False).agg(
@@ -145,7 +150,6 @@ if uploaded_file:
         beneficio_financiacion_total = ("Beneficio financiación comercial", "sum"),
     ).reset_index()
 
-    # Ordenar
     resumen = resumen.sort_values(by=["Delegación", "Opportunity Owner"])
 
     # Filtros
