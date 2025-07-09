@@ -84,9 +84,10 @@ if uploaded_file is not None:
         else:
             return normales * tarifa + otras * (tarifa * 0.5)
 
+    # ✅ NUEVA función corregida
     def calcular_comision_por_beneficio(b):
         if b <= 5000:
-            return b * 0.02
+            return 0  # Sin comisión
         elif b <= 8000:
             return b * 0.03
         elif b <= 12000:
@@ -189,42 +190,33 @@ if uploaded_file is not None:
             }
         }
 
+    # Cargar y preparar datos
     df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()  # limpiar espacios
-
-    # Limpiar el campo beneficio
+    df_raw.columns = df_raw.columns.str.strip()
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Crear resumen por Opportunity Owner
     resumen = pd.DataFrame()
     resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
     resumen = resumen.set_index("ownername")
 
-    # Entregas = tipo Venta
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
     resumen["entregas"] = entregas
 
-    # Entregas compartidas = hay copropietario
     compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
     resumen["entregas_compartidas"] = compartidas
 
-    # Compras = tipo Tasación
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
     resumen["compras"] = compras
 
-    # VH como cambio = tipo Cambio
     cambios = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
     resumen["vh_cambio"] = cambios
 
-    # Con descuento = descuento marcado como algo distinto a vacío o nulo
     con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
     resumen["entregas_con_descuento"] = con_descuento
 
-    # Beneficio financiero
     beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
     resumen["beneficio_financiero"] = beneficio
 
-    # Rellenar columnas faltantes con ceros
     for col in [
         "entregas", "entregas_compartidas", "compras", "vh_cambio", "beneficio_financiero", "entregas_con_descuento"
     ]:
@@ -232,7 +224,6 @@ if uploaded_file is not None:
             resumen[col] = 0
     resumen.fillna(0, inplace=True)
 
-    # Agregar columnas que aún no tenemos pero necesita la función
     resumen["nueva_incorporacion"] = False
     resumen["facturacion_garantias"] = 0
     resumen["beneficio_financiacion_total"] = resumen["beneficio_financiero"]
