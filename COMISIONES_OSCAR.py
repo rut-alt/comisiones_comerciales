@@ -1,6 +1,7 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
+import re
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
@@ -47,21 +48,15 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-def limpiar_eur(valor):
-
+def limpiar_eur_mejor(valor):
     try:
         s = str(valor)
-        s = re.sub(r"[^\d,.-]", "", s)  # Quitar todo menos dígitos, coma, punto y guion
-        # Aquí asumo que el punto es separador de miles, la coma decimal
-        # Primero eliminar puntos que separan miles:
-        s = s.replace(".", "")
-        # Cambiar la coma decimal a punto decimal para float:
-        s = s.replace(",", ".")
+        s = re.sub(r"[^\d,.-]", "", s)  # quitar todo menos dígitos, coma, punto y guion
+        s = s.replace(".", "")           # quitar separador de miles
+        s = s.replace(",", ".")          # convertir decimal
         return float(s) if s else 0.0
     except:
         return 0.0
-
-
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
@@ -226,127 +221,23 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
         }
     }
 
-def resumen_comision_beneficio(b):
-    if b <= 5000:
-        comision = 0
-        tramo = "≤ 5000 €"
-        porcentaje = 0
-    elif b <= 8000:
-        comision = b * 0.03
-        tramo = "5001 € - 8000 €"
-        porcentaje = 3
-    elif b <= 12000:
-        comision = b * 0.04
-        tramo = "8001 € - 12000 €"
-        porcentaje = 4
-    elif b <= 17000:
-        comision = b * 0.05
-        tramo = "12001 € - 17000 €"
-        porcentaje = 5
-    elif b <= 25000:
-        comision = b * 0.06
-        tramo = "17001 € - 25000 €"
-        porcentaje = 6
-    elif b <= 30000:
-        comision = b * 0.07
-        tramo = "25001 € - 30000 €"
-        porcentaje = 7
-    elif b <= 50000:
-        comision = b * 0.08
-        tramo = "30001 € - 50000 €"
-        porcentaje = 8
-    else:
-        comision = b * 0.09
-        tramo = "> 50000 €"
-        porcentaje = 9
-
-    return {
-        "beneficio": b,
-        "tramo": tramo,
-        "porcentaje": porcentaje,
-        "comision_calculada": comision
-    }
-
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
 
-    # Aplicar limpieza del campo beneficio financiación comercial para formato europeo
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
+    # Limpiar Beneficio financiación comercial con la nueva función
+    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur_mejor)
 
+    # Añadir columna Delegación si no existe
     if "Delegación" not in df_raw.columns:
         df_raw["Delegación"] = df_raw.iloc[:, -1]
     else:
         df_raw["Delegación"] = df_raw["Delegación"]
 
-    entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    entregas_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
-    compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    entregas_con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum() 
-    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
+    # Filtrar filas con beneficio financiación > 0 para sumar correctamente
+    df_filtrado_beneficio = df_raw[df_raw["Beneficio financiación comercial"] > 0]
 
-    resumen = pd.DataFrame({
-        "ownername": beneficio_financiacion_total.index,
-        "entregas": entregas,
-        "entregas_compartidas": entregas_compartidas,
-        "compras": compras,
-        "vh_cambio": vh_cambio,
-        "entregas_con_descuento": entregas_con_descuento,
-        "beneficio_financiacion_total": beneficio_financiacion_total,
-        "delegacion": delegacion_por_owner
-    })
+    # Calcular beneficio financiación total por comercial (solo suma > 0)
+    beneficio_financiacion_total = df_filtrado_beneficio.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
 
-    resumen = resumen.fillna(0).reset_index(drop=True)
-
-    delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
-    seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
-
-    if seleccion_delegacion != "Todas":
-        resumen = resumen[resumen["delegacion"] == seleccion_delegacion]
-
-    comerciales_filtrados = ["Todos"] + sorted(resumen["ownername"].unique().tolist())
-    seleccion_comercial = st.selectbox("Filtrar por Comercial", comerciales_filtrados)
-
-    if seleccion_comercial != "Todos":
-        resumen = resumen[resumen["ownername"] == seleccion_comercial]
-
-    resumen = resumen.sort_values(by=["delegacion", "ownername"]).reset_index(drop=True)
-
-    st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-
-    for i, row in resumen.iterrows():
-        nuevo_flag = False
-        jefe_flag = False
-
-        # Aquí podrías poner una condición para identificar nuevos comerciales o jefes
-        # ejemplo:
-        # nuevo_flag = row['ownername'] in lista_nuevos_comerciales
-        # jefe_flag = row['ownername'] in lista_jefes
-
-        resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
-
-        st.markdown(f"### Comercial: {row['ownername']} - Delegación: {row['delegacion']}")
-        st.markdown(f"- Total comisión antes de penalizaciones: {resultado['prima_total']:.2f} €")
-        st.markdown(f"- Penalizaciones aplicadas: {', '.join([p[0] for p in resultado['penalizaciones_detalle']]) or 'Ninguna'}")
-        st.markdown(f"- Total comisión final: {resultado['prima_final']:.2f} €")
-
-        # Aquí mostramos el resumen de cómo se calcula la comisión por beneficio:
-        resumen_beneficio = resumen_comision_beneficio(row["beneficio_financiacion_total"])
-        st.markdown("#### Resumen Comisión por Beneficio")
-        st.markdown(f"- Beneficio Financiación Total: {resumen_beneficio['beneficio']:.2f} €")
-        st.markdown(f"- Tramo aplicable: {resumen_beneficio['tramo']}")
-        st.markdown(f"- Porcentaje aplicado: {resumen_beneficio['porcentaje']}%")
-        st.markdown(f"- Comisión calculada: {resumen_beneficio['comision_calculada']:.2f} €")
-
-        # Si quieres también el desglose completo de cada concepto:
-        st.markdown("#### Desglose completo comisiones y bonos:")
-        for clave, valor in resultado['desglose'].items():
-            st.markdown(f"- {clave.replace('_',' ').capitalize()}: {valor:.2f} €")
-
-        st.markdown("---")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
+    # Contar entregas por Opportunity Owner (tipo "Venta
