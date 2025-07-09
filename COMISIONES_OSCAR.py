@@ -200,11 +200,22 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
 
     prima_final = prima_total - penalizacion_total
 
-    return {
-        'prima_total': prima_total,
-        'prima_final': prima_final,
-        'penalizaciones_detalle': penalizaciones_detalle,
-        'desglose': {
-            'comision_entregas': comision_entregas,
-            'comision_entregas_compartidas': comision_entregas_compartidas,
-            'comision_compras': comision_com
+return {
+    'prima_total': prima_total,
+    'prima_final': prima_final,
+    'penalizaciones_detalle': penalizaciones_detalle,
+    'desglose': {
+        'comision_entregas': comision_entregas,
+        'comision_entregas_compartidas': comision_entregas_compartidas,
+        'comision_compras': comision_compras,
+        'comision_vh_cambio': comision_vh_cambio,
+        'comision_beneficio': comision_beneficio,
+        'bono_financiacion': bono_financiacion,
+        'bono_rapida': bono_rapida,
+        'bono_stock': bono_stock,
+        'penalizacion_descuento': penalizacion_descuento,
+        'bono_garantias': bono_garantias,
+        'bono_resenas': bono_resenas,
+        'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
+    }  # Esta llave cierra 'desglose'
+}  # Esta llave cierra todo el diccionario que devuelve la función
