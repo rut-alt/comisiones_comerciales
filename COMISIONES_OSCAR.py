@@ -47,14 +47,25 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Limpieza correcta del campo monetario (formato europeo)
+import re
+
 def limpiar_eur(valor):
     try:
-        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
-        s = s.replace(".", "").replace(",", ".")
-        return float(s) if s else 0.0
+        if pd.isna(valor):
+            return 0.0
+        s = str(valor)
+        s = re.sub(r"[^\d,\.]", "", s)  # Elimina todo excepto dígitos, puntos y comas
+        if s.count(",") == 1:
+            # Formato europeo típico: 12.345,67
+            s = s.replace(".", "")  # Elimina separadores de miles
+            s = s.replace(",", ".")  # Convierte coma decimal a punto
+        elif s.count(".") == 1 and s.count(",") == 0:
+            # Formato inglés (12,345.67) por si acaso
+            s = s.replace(",", "")  # Elimina separadores de miles
+        return float(s)
     except:
         return 0.0
+
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
@@ -232,79 +243,65 @@ if uploaded_file is not None:
         df_raw["Delegación"] = df_raw["Delegación"]
 
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    entregas_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
-    compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    entregas_con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
+    entregas_compartidas = df_raw[df_raw["Opportunity Record Type"] == "Venta compartida"].groupby("Opportunity Owner").size()
+    compras = df_raw[df_raw["Opportunity Record Type"] == "Compra"].groupby("Opportunity Owner").size()
+    vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Vehículo cambio"].groupby("Opportunity Owner").size()
+    garantias_premium = df_raw[df_raw["Opportunity Record Type"] == "Garantía Premium"].groupby("Opportunity Owner").size()
+    facturacion_garantias = df_raw.groupby("Opportunity Owner")["Importe"].sum()
     beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
+    entregas_con_financiacion = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Financiación"] == "Sí")].groupby("Opportunity Owner").size()
+    entregas_rapidas = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Entrega rápida"] == "Sí")].groupby("Opportunity Owner").size()
+    entregas_stock_largo = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Entrega stock largo"] == "Sí")].groupby("Opportunity Owner").size()
+    entregas_con_descuento = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["¿Descuento?"] == "Sí")].groupby("Opportunity Owner").size()
+    resenas = df_raw[df_raw["Opportunity Record Type"] == "Reseña"].groupby("Opportunity Owner").size()
+    n_casos_venta_superior = df_raw[df_raw["Opportunity Record Type"] == "Caso venta superior"].groupby("Opportunity Owner").size()
 
     resumen = pd.DataFrame({
-        "ownername": beneficio_financiacion_total.index,
-        "entregas": entregas,
-        "entregas_compartidas": entregas_compartidas,
-        "compras": compras,
-        "vh_cambio": vh_cambio,
-        "entregas_con_descuento": entregas_con_descuento,
-        "beneficio_financiacion_total": beneficio_financiacion_total,
-        "delegacion": delegacion_por_owner
+        'ownername': entregas.index,
+        'entregas': entregas.values,
+        'entregas_compartidas': entregas_compartidas.reindex(entregas.index, fill_value=0).values,
+        'compras': compras.reindex(entregas.index, fill_value=0).values,
+        'vh_cambio': vh_cambio.reindex(entregas.index, fill_value=0).values,
+        'garantias_premium': garantias_premium.reindex(entregas.index, fill_value=0).values,
+        'facturacion_garantias': facturacion_garantias.reindex(entregas.index, fill_value=0).values,
+        'beneficio_financiacion_total': beneficio_financiacion_total.reindex(entregas.index, fill_value=0).values,
+        'entregas_con_financiacion': entregas_con_financiacion.reindex(entregas.index, fill_value=0).values,
+        'entregas_rapidas': entregas_rapidas.reindex(entregas.index, fill_value=0).values,
+        'entregas_stock_largo': entregas_stock_largo.reindex(entregas.index, fill_value=0).values,
+        'entregas_con_descuento': entregas_con_descuento.reindex(entregas.index, fill_value=0).values,
+        'resenas': resenas.reindex(entregas.index, fill_value=0).values,
+        'n_casos_venta_superior': n_casos_venta_superior.reindex(entregas.index, fill_value=0).values
     })
 
-    resumen = resumen.fillna(0).reset_index(drop=True)
+    resumen["es_nuevo"] = resumen["ownername"].str.contains("Nuevo", case=False)
+    resumen["es_jefe"] = resumen["ownername"].str.contains("Jefe", case=False)
 
-    delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
-    seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
+    resumen['prima_total'] = 0.0
+    resumen['prima_final'] = 0.0
+    resumen['penalizaciones'] = None
+    resumen['desglose'] = None
 
-    if seleccion_delegacion != "Todas":
-        resumen = resumen[resumen["delegacion"] == seleccion_delegacion]
+    for i, fila in resumen.iterrows():
+        resultado = calcular_comision_fila(fila, fila["es_nuevo"], fila["es_jefe"])
+        resumen.at[i, 'prima_total'] = resultado['prima_total']
+        resumen.at[i, 'prima_final'] = resultado['prima_final']
+        resumen.at[i, 'penalizaciones'] = resultado['penalizaciones_detalle']
+        resumen.at[i, 'desglose'] = resultado['desglose']
 
-    comerciales_filtrados = ["Todos"] + sorted(resumen["ownername"].unique().tolist())
-    seleccion_comercial = st.selectbox("Filtrar por Comercial", comerciales_filtrados)
+    comerciales = resumen['ownername'].unique().tolist()
+    comerciales.insert(0, "Todos")
+    seleccion_comercial = st.selectbox("Selecciona un comercial", comerciales)
 
     if seleccion_comercial != "Todos":
         resumen = resumen[resumen["ownername"] == seleccion_comercial]
 
-    resumen = resumen.sort_values(by=["delegacion", "ownername"]).reset_index(drop=True)
-
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### Resultados por Comercial")
-
-    for idx, row in resumen.iterrows():
-        owner = row["ownername"]
-        key_nuevo = f"nuevo_{owner}"
-        key_jefe = f"jefe_{owner}"
-
-        if key_nuevo not in st.session_state:
-            st.session_state[key_nuevo] = False
-        if key_jefe not in st.session_state:
-            st.session_state[key_jefe] = False
-
-        cols = st.columns([1, 1])
-        nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
-        jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
-
-        # Guardar sin provocar reruns infinitos
-        if (st.session_state[key_nuevo] != nuevo_flag) or (st.session_state[key_jefe] != jefe_flag):
-            st.session_state[key_nuevo] = nuevo_flag
-            st.session_state[key_jefe] = jefe_flag
-            st.experimental_rerun()
-
-        resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
-
-        st.markdown(f"## Comercial: **{owner}**")
-        st.markdown(f"- Delegación: {row['delegacion']}")
-        st.markdown(f"- Prima total antes de penalizaciones: {resultado['prima_total']:.2f} €")
-        st.markdown(f"- Prima final a cobrar: **{resultado['prima_final']:.2f} €**")
-        st.markdown("**Desglose de conceptos:**")
-        for k, v in resultado['desglose'].items():
-            st.markdown(f"  - {k.replace('_', ' ').capitalize()}: {v:.2f} €")
-        if resultado['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones:**")
-            for pen in resultado['penalizaciones_detalle']:
-                st.markdown(f"  - {pen[0]}: {pen[1]:.2f} €")
-        st.markdown("---")
-
+    st.markdown("### Resultado de comisiones")
+    for _, row in resumen.iterrows():
+        st.markdown(f"- Comercial: **{row['ownername']}** → Comisión final: {row['prima_final']:.2f} €")
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Aquí está el bloque para subir el segundo archivo ---
     st.markdown("<div class='input-section'>", unsafe_allow_html=True)
     st.markdown("### 📂 Cargar archivo Excel con stock >150 por comercial")
     uploaded_stock_file = st.file_uploader("Sube un archivo .xlsx con stock >150", type=["xlsx"], key="stock_uploader")
@@ -314,13 +311,11 @@ if uploaded_file is not None:
         df_stock = pd.read_excel(uploaded_stock_file)
         df_stock.columns = df_stock.columns.str.strip()
 
-        # Se asume que hay columnas 'ownername' y 'stock' o similar para filtrar >150
         if "ownername" in df_stock.columns and "stock" in df_stock.columns:
             df_stock["stock"] = pd.to_numeric(df_stock["stock"], errors="coerce").fillna(0)
             stock_mayor_150 = df_stock[df_stock["stock"] > 150].groupby("ownername")["stock"].count().reset_index()
             stock_mayor_150.columns = ["ownername", "stock_mayor_150"]
 
-            # Mostrar stock >150 filtrado según la selección comercial (si no "Todos")
             if seleccion_comercial != "Todos":
                 stock_filtrado = stock_mayor_150[stock_mayor_150["ownername"] == seleccion_comercial]
             else:
