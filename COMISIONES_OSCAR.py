@@ -49,7 +49,6 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Función limpieza
 def limpiar_eur(valor):
     try:
         return float(str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip())
@@ -84,10 +83,9 @@ if uploaded_file is not None:
         else:
             return normales * tarifa + otras * (tarifa * 0.5)
 
-    # ✅ NUEVA función corregida
     def calcular_comision_por_beneficio(b):
         if b <= 5000:
-            return 0  # Sin comisión
+            return 0
         elif b <= 8000:
             return b * 0.03
         elif b <= 12000:
@@ -190,43 +188,28 @@ if uploaded_file is not None:
             }
         }
 
-    # Cargar y preparar datos
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
+    df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].str.strip()
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    resumen = pd.DataFrame()
-    resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
-    resumen = resumen.set_index("ownername")
+    resumen = df_raw.groupby("Opportunity Owner").agg({
+        "Opportunity Owner": "first",
+        "Beneficio financiación comercial": "sum"
+    }).rename(columns={"Beneficio financiación comercial": "beneficio_financiero"})
 
-    entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    resumen["entregas"] = entregas
+    resumen["entregas"] = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
+    resumen["entregas_compartidas"] = df_raw[df_raw["Coopropietario de la Oportunidad"].notna()].groupby("Opportunity Owner").size()
+    resumen["compras"] = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
+    resumen["vh_cambio"] = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
+    resumen["entregas_con_descuento"] = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
 
-    compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
-    resumen["entregas_compartidas"] = compartidas
-
-    compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    resumen["compras"] = compras
-
-    cambios = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    resumen["vh_cambio"] = cambios
-
-    con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    resumen["entregas_con_descuento"] = con_descuento
-
-    beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-    resumen["beneficio_financiero"] = beneficio
-
-    for col in [
-        "entregas", "entregas_compartidas", "compras", "vh_cambio", "beneficio_financiero", "entregas_con_descuento"
-    ]:
-        if col not in resumen.columns:
-            resumen[col] = 0
     resumen.fillna(0, inplace=True)
 
     resumen["nueva_incorporacion"] = False
     resumen["facturacion_garantias"] = 0
     resumen["beneficio_financiacion_total"] = resumen["beneficio_financiero"]
+    resumen["entregas_otra_delegacion"] = 0
     resumen["entregas_con_financiacion"] = 0
     resumen["entregas_rapidas"] = 0
     resumen["entregas_stock_largo"] = 0
@@ -234,13 +217,13 @@ if uploaded_file is not None:
     resumen["garantias_premium"] = 0
     resumen["n_casos_venta_superior"] = 0
 
-    resumen = resumen.reset_index()
+    resumen = resumen.reset_index(drop=True)
 
     resultados = []
     for _, fila in resumen.iterrows():
         resultado = calcular_comision_fila(fila)
         resultados.append({
-            'ownername': fila['ownername'],
+            'ownername': fila['Opportunity Owner'],
             'prima_final': resultado['prima_final'],
             'prima_total': resultado['prima_total'],
             'penalizaciones_detalle': resultado['penalizaciones_detalle'],
@@ -254,19 +237,14 @@ if uploaded_file is not None:
         st.markdown(f"## Comercial: **{r['ownername']}**")
         st.markdown(f"### Prima total antes de penalizaciones: {r['prima_total']:.2f} €")
         st.markdown(f"### Prima final a cobrar: **{r['prima_final']:.2f} €**")
-
         st.markdown("**Desglose de conceptos:**")
-        desglose = r['desglose']
-        for concepto, valor in desglose.items():
+        for concepto, valor in r['desglose'].items():
             st.markdown(f"- {concepto.replace('_', ' ').capitalize()}: {valor:.2f} €")
-
         if r['penalizaciones_detalle']:
             st.markdown("**Penalizaciones aplicadas:**")
             for motivo, importe in r['penalizaciones_detalle']:
                 st.markdown(f"- {motivo}: -{importe:.2f} €")
-
         st.markdown("---")
-
     st.markdown("</div>", unsafe_allow_html=True)
 
 else:
