@@ -227,6 +227,19 @@ if uploaded_file is not None:
 
     resumen = resumen.sort_values(by=["delegacion", "ownername"])
 
+    # Filtros
+    delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
+    seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
+
+    if seleccion_delegacion != "Todas":
+        resumen = resumen[resumen["delegacion"] == seleccion_delegacion]
+
+    comerciales_filtrados = ["Todos"] + sorted(resumen["ownername"].unique().tolist())
+    seleccion_comercial = st.selectbox("Filtrar por Comercial", comerciales_filtrados)
+
+    if seleccion_comercial != "Todos":
+        resumen = resumen[resumen["ownername"] == seleccion_comercial]
+
     st.markdown("## Comercial y opciones")
 
     for idx, fila in resumen.iterrows():
