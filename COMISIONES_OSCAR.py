@@ -1,59 +1,17 @@
 import streamlit as st
-from PIL import Image
 import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos
-st.markdown("""
-<style>
-    .main {
-        background-color: white !important;
-        color: black !important;
-    }
-    .input-section {
-        background-color: #2b344d;
-        color: white !important;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 25px;
-        border: 1px solid #ccc;
-    }
-    .result-section {
-        background-color: #2b344d;
-        color: white !important;
-        padding: 20px;
-        border-radius: 10px;
-        margin-top: 25px;
-        border: 1px solid #cce5ff;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-try:
-    logo = Image.open("LOGO-HRMOTOR-RGB.png")
-except:
-    logo = None
-
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
-with col2:
-    if logo:
-        st.image(logo, width=250)
-
-st.markdown("<div class='input-section'>", unsafe_allow_html=True)
-st.markdown("### 📂 Cargar archivo Excel con oportunidades")
-uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
-st.markdown("</div>", unsafe_allow_html=True)
-
+# Limpieza formato EUR "EUR2.496,90" -> 2496.90 float
 def limpiar_eur(valor):
     try:
-        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
-        s = s.replace(".", "").replace(",", ".")
+        s = str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip()
         return float(s) if s else 0.0
     except:
         return 0.0
+
+# Escalados y funciones de cálculo (las mantengo igual a tu código original, que ya tienes definido)
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
@@ -159,7 +117,6 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
     entregas_stock_largo = int(fila.get('entregas_stock_largo', 0))
     entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
     resenas = int(fila.get('resenas', 0))
-    n_casos_venta_superior = int(fila.get('n_casos_venta_superior', 0))
 
     bono_ventas_sobre_pvp = 0
 
@@ -218,17 +175,23 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
         }
     }
 
+if st.button("Reiniciar filtros"):
+    st.experimental_rerun()
+
+uploaded_file = st.file_uploader("Sube un archivo Excel (.xlsx) con las oportunidades", type=["xlsx"])
+
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
 
+    # Limpiar beneficio financiación comercial
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
+    # Asegurar que "Delegación" está presente
     if "Delegación" not in df_raw.columns:
         df_raw["Delegación"] = df_raw.iloc[:, -1]
-    else:
-        df_raw["Delegación"] = df_raw["Delegación"]
 
+    # Agrupar y preparar datos resumen
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
     entregas_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
@@ -250,6 +213,7 @@ if uploaded_file is not None:
 
     resumen = resumen.fillna(0).reset_index(drop=True)
 
+    # Filtros delegación y comercial
     delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
     seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
 
@@ -264,34 +228,29 @@ if uploaded_file is not None:
 
     resumen = resumen.sort_values(by=["delegacion", "ownername"]).reset_index(drop=True)
 
-    st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### Resultados por Comercial")
+    # Checkboxes NUEVO y JEFE en resultado, recálculo inmediato
+    st.markdown("### Opciones por Comercial (Marca para recalcular)")
+    com_nuevo = {}
+    com_jefe = {}
 
     for idx, row in resumen.iterrows():
         owner = row["ownername"]
-        # Cargar estado de flags desde session_state para persistencia
-        key_nuevo = f"nuevo_{owner}"
-        key_jefe = f"jefe_{owner}"
+        cols = st.columns(2)
+        with cols[0]:
+            com_nuevo[owner] = st.checkbox("Nuevo incorporación", key=f"nuevo_{owner}")
+        with cols[1]:
+            com_jefe[owner] = st.checkbox("Jefe de tienda", key=f"jefe_{owner}")
 
-        if key_nuevo not in st.session_state:
-            st.session_state[key_nuevo] = False
-        if key_jefe not in st.session_state:
-            st.session_state[key_jefe] = False
+    # Mostrar resultados con cálculo completo y desglose
+    st.markdown("## Resultados")
+    for idx, row in resumen.iterrows():
+        owner = row["ownername"]
+        es_nuevo = com_nuevo.get(owner, False)
+        es_jefe = com_jefe.get(owner, False)
 
-        # Mostrar checkboxes dentro del resultado de cada comercial
-        cols = st.columns([1, 1])
-        nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
-        jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
+        resultado = calcular_comision_fila(row, es_nuevo, es_jefe)
 
-        # Guardar cambios para que recalcule instantáneo
-        if st.session_state[key_nuevo] != nuevo_flag or st.session_state[key_jefe] != jefe_flag:
-            st.session_state[key_nuevo] = nuevo_flag
-            st.session_state[key_jefe] = jefe_flag
-            st.experimental_rerun()
-
-        resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
-
-        st.markdown(f"## Comercial: **{owner}**")
+        st.markdown(f"### Comercial: **{owner}**")
         st.markdown(f"- Delegación: {row['delegacion']}")
         st.markdown(f"- Prima total antes de penalizaciones: {resultado['prima_total']:.2f} €")
         st.markdown(f"- Prima final a cobrar: **{resultado['prima_final']:.2f} €**")
@@ -303,8 +262,6 @@ if uploaded_file is not None:
             for pen in resultado['penalizaciones_detalle']:
                 st.markdown(f"  - {pen[0]}: {pen[1]:.2f} €")
         st.markdown("---")
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 else:
     st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
