@@ -44,6 +44,11 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
+# Checkboxes para nueva incorporación y jefe de tienda
+with st.sidebar:
+    nueva_incorporacion_global = st.checkbox("Nueva incorporación (aplica a todos los comerciales)", value=False)
+    jefe_de_tienda_global = st.checkbox("Jefe de tienda (aplica a todos los comerciales)", value=False)
+
 # Subida de Excel
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
@@ -55,40 +60,77 @@ def limpiar_eur(valor):
     try:
         s = str(valor).strip()
         s = s.replace("EUR", "").strip()
-        # Quitar puntos solo como separador de miles
         s = re.sub(r'\.(?=\d{3},)', '', s)
-        # Cambiar coma decimal por punto
         s = s.replace(",", ".")
         return float(s)
     except:
         return 0.0
 
-# Funciones para cálculos de comisión
-def calcular_tarifa_entrega(n):
-    if n <= 5:
+# Tarifa entrega para vendedores (según tabla dada)
+def calcular_tarifa_entrega_vendedor(n):
+    if n <= 6:
+        return 0  # no cobra comisión, sólo producto (lo maneja en la lógica)
+    elif 7 <= n <= 9:
         return 20
-    elif 6 <= n <= 8:
-        return 20
-    elif 9 <= n <= 11:
+    elif 10 <= n <= 11:
         return 40
-    elif 12 <= n <= 20:
+    elif 12 <= n <= 15:
         return 60
+    elif 16 <= n <= 20:
+        return 65
     elif 21 <= n <= 25:
         return 75
     elif 26 <= n <= 30:
         return 80
-    else:
+    elif 31 <= n <= 35:
         return 90
-
-def calcular_comision_entregas(total, otras, nueva):
-    normales = total - otras
-    tarifa = calcular_tarifa_entrega(total)
-    if nueva and total <= 5:
-        return normales * 20 + otras * 10
-    elif not nueva and total <= 5:
-        return 0
     else:
+        return 95
+
+# Tarifa entrega para jefe de tienda (según tabla dada)
+def calcular_tarifa_entrega_jefe(n):
+    if n <= 6:
+        return 20
+    elif 7 <= n <= 9:
+        return 20
+    elif 10 <= n <= 11:
+        return 40
+    elif 12 <= n <= 15:
+        return 60
+    elif 16 <= n <= 20:
+        return 65
+    elif 21 <= n <= 25:
+        return 75
+    elif 26 <= n <= 30:
+        return 80
+    elif 31 <= n <= 35:
+        return 90
+    else:
+        return 95
+
+# Función para calcular comisión de entregas según tipo y condiciones
+def calcular_comision_entregas(total, otras, nueva, jefe):
+    normales = total - otras
+    if jefe:
+        tarifa = calcular_tarifa_entrega_jefe(total)
+        # Jefe de tienda cobra siempre tarifa, sin condiciones especiales
         return normales * tarifa + otras * (tarifa * 0.5)
+    else:
+        tarifa = calcular_tarifa_entrega_vendedor(total)
+        if nueva:
+            # Nueva incorporación vendedor
+            if total <= 6:
+                # No cobra comisión entregas, solo producto (se asume 20€ en total entregas? Si no, ponemos 0)
+                # Según tabla: "no cobrará comisión, solo producto 20€" → vamos a pagar 20€ por cada entrega para <=6
+                return normales * 20 + otras * 10
+            elif total > 6:
+                return normales * tarifa + otras * (tarifa * 0.5)
+        else:
+            # Vendedor normal, no nueva incorporación
+            if total <= 6:
+                return 0
+            else:
+                return normales * tarifa + otras * (tarifa * 0.5)
 
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
@@ -120,16 +162,17 @@ def calcular_incentivo_garantias(f):
     else:
         return f * 0.10
 
-def calcular_comision_fila(fila):
+def calcular_comision_fila(fila, nueva_global, jefe_global):
     entregas = int(fila.get('entregas', 0))
     entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
     entregas_compartidas = int(fila.get('entregas_compartidas', 0))
-    nueva_incorporacion = bool(fila.get('nueva_incorporacion', False))
+    # Sacamos nueva_incorporacion del checkbox global (ya no del excel)
+    nueva_incorporacion = nueva_global
+    jefe_de_tienda = jefe_global
     compras = int(fila.get('compras', 0))
     vh_cambio = int(fila.get('vh_cambio', 0))
     garantias_premium = int(fila.get('garantias_premium', 0))
     facturacion_garantias = float(fila.get('facturacion_garantias', 0))
-    beneficio_financiero = float(fila.get('beneficio_financiero', 0))
     beneficio_financiacion_total = float(fila.get('beneficio_financiacion_total', 0))
     entregas_con_financiacion = int(fila.get('entregas_con_financiacion', 0))
     entregas_rapidas = int(fila.get('entregas_rapidas', 0))
@@ -140,9 +183,7 @@ def calcular_comision_fila(fila):
 
     bono_ventas_sobre_pvp = 0
 
-
-
-    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
+    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion, jefe_de_tienda)
     comision_compras = compras * 60
     comision_vh_cambio = vh_cambio * 30
     bono_financiacion = entregas_con_financiacion * 10
@@ -170,7 +211,7 @@ def calcular_comision_fila(fila):
         p = prima_total * 0.10
         penalizacion_total += p
         penalizaciones_detalle.append(("Reseñas ≤ 50%", p))
-    if beneficio_financiero < 4000:
+    if beneficio_financiacion_total < 4000:
         p = prima_total * 0.10
         penalizacion_total += p
         penalizaciones_detalle.append(("Beneficio financiero < 4000 €", p))
@@ -199,17 +240,13 @@ def calcular_comision_fila(fila):
 
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()  # limpiar espacios en columnas
+    df_raw.columns = df_raw.columns.str.strip()
 
-    # Limpiar el campo beneficio financiación comercial
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Crear resumen por Opportunity Owner
     resumen = pd.DataFrame()
     resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
     resumen = resumen.set_index("ownername")
-
-    # Calcular columnas necesarias agrupando
 
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
     resumen["entregas"] = entregas
@@ -229,7 +266,6 @@ if uploaded_file is not None:
     beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
     resumen["beneficio_financiacion_total"] = beneficio
 
-    # Rellenar columnas faltantes con ceros
     for col in [
         "entregas", "entregas_compartidas", "compras", "vh_cambio", "beneficio_financiacion_total", "entregas_con_descuento"
     ]:
@@ -237,10 +273,9 @@ if uploaded_file is not None:
             resumen[col] = 0
     resumen.fillna(0, inplace=True)
 
-    # Agregar columnas que la función necesita aunque no tengas datos todavía
-    resumen["nueva_incorporacion"] = False
+    resumen["nueva_incorporacion"] = False  # ya no se usa
     resumen["facturacion_garantias"] = 0
-    resumen["beneficio_financiero"] = resumen["beneficio_financiacion_total"]  # si quieres usarlo también
+    resumen["beneficio_financiero"] = resumen["beneficio_financiacion_total"]
     resumen["entregas_con_financiacion"] = 0
     resumen["entregas_rapidas"] = 0
     resumen["entregas_stock_largo"] = 0
@@ -252,7 +287,7 @@ if uploaded_file is not None:
 
     resultados = []
     for _, fila in resumen.iterrows():
-        resultado = calcular_comision_fila(fila)
+        resultado = calcular_comision_fila(fila, nueva_incorporacion_global, jefe_de_tienda_global)
         resultados.append({
             'ownername': fila['ownername'],
             'prima_final': resultado['prima_final'],
@@ -286,4 +321,3 @@ if uploaded_file is not None:
 
 else:
     st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
-
