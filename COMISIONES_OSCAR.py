@@ -119,19 +119,19 @@ def calcular_comision_por_beneficio(b):
     if b <= 5000:
         return 0
     elif b <= 8000:
-        return b * 0.03
+        return (b - 5000) * 0.03
     elif b <= 12000:
-        return b * 0.04
+        return (8000 - 5000) * 0.03 + (b - 8000) * 0.04
     elif b <= 17000:
-        return b * 0.05
+        return (8000 - 5000) * 0.03 + (12000 - 8000) * 0.04 + (b - 12000) * 0.05
     elif b <= 25000:
-        return b * 0.06
+        return (8000 - 5000) * 0.03 + (12000 - 8000) * 0.04 + (17000 - 12000) * 0.05 + (b - 17000) * 0.06
     elif b <= 30000:
-        return b * 0.07
+        return (8000 - 5000) * 0.03 + (12000 - 8000) * 0.04 + (17000 - 12000) * 0.05 + (25000 - 17000) * 0.06 + (b - 25000) * 0.07
     elif b <= 50000:
-        return b * 0.08
+        return (8000 - 5000) * 0.03 + (12000 - 8000) * 0.04 + (17000 - 12000) * 0.05 + (25000 - 17000) * 0.06 + (30000 - 25000) * 0.07 + (b - 30000) * 0.08
     else:
-        return b * 0.09
+        return (8000 - 5000) * 0.03 + (12000 - 8000) * 0.04 + (17000 - 12000) * 0.05 + (25000 - 17000) * 0.06 + (30000 - 25000) * 0.07 + (50000 - 30000) * 0.08 + (b - 50000) * 0.09
 
 def calcular_incentivo_garantias(f):
     if f <= 4500:
@@ -217,95 +217,4 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
             'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
         }
     }
-
-if uploaded_file is not None:
-    df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()
-
-    # Aplicar limpieza del campo beneficio financiación comercial para formato europeo
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
-
-    if "Delegación" not in df_raw.columns:
-        df_raw["Delegación"] = df_raw.iloc[:, -1]
-    else:
-        df_raw["Delegación"] = df_raw["Delegación"]
-
-    entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    entregas_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
-    compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    entregas_con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
-
-    resumen = pd.DataFrame({
-        "ownername": beneficio_financiacion_total.index,
-        "entregas": entregas,
-        "entregas_compartidas": entregas_compartidas,
-        "compras": compras,
-        "vh_cambio": vh_cambio,
-        "entregas_con_descuento": entregas_con_descuento,
-        "beneficio_financiacion_total": beneficio_financiacion_total,
-        "delegacion": delegacion_por_owner
-    })
-
-    resumen = resumen.fillna(0).reset_index(drop=True)
-
-    delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
-    seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
-
-    if seleccion_delegacion != "Todas":
-        resumen = resumen[resumen["delegacion"] == seleccion_delegacion]
-
-    comerciales_filtrados = ["Todos"] + sorted(resumen["ownername"].unique().tolist())
-    seleccion_comercial = st.selectbox("Filtrar por Comercial", comerciales_filtrados)
-
-    if seleccion_comercial != "Todos":
-        resumen = resumen[resumen["ownername"] == seleccion_comercial]
-
-    resumen = resumen.sort_values(by=["delegacion", "ownername"]).reset_index(drop=True)
-
-    st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### Resultados por Comercial")
-
-    for idx, row in resumen.iterrows():
-        owner = row["ownername"]
-        key_nuevo = f"nuevo_{owner}"
-        key_jefe = f"jefe_{owner}"
-
-        if key_nuevo not in st.session_state:
-            st.session_state[key_nuevo] = False
-        if key_jefe not in st.session_state:
-            st.session_state[key_jefe] = False
-
-        cols = st.columns([1, 1])
-        nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
-        jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
-
-        # Guardar sin provocar reruns infinitos
-        if (st.session_state[key_nuevo] != nuevo_flag) or (st.session_state[key_jefe] != jefe_flag):
-            st.session_state[key_nuevo] = nuevo_flag
-            st.session_state[key_jefe] = jefe_flag
-            st.experimental_rerun()
-
-        resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
-
-        st.markdown(f"## Comercial: **{owner}**")
-        st.markdown(f"- Delegación: {row['delegacion']}")
-        st.markdown(f"- Prima total antes de penalizaciones: {resultado['prima_total']:.2f} €")
-        st.markdown(f"- Prima final a cobrar: **{resultado['prima_final']:.2f} €**")
-        st.markdown("**Desglose de conceptos:**")
-        for k, v in resultado['desglose'].items():
-            st.markdown(f"  - {k.replace('_', ' ').capitalize()}: {v:.2f} €")
-        if resultado['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones:**")
-            for pen in resultado['penalizaciones_detalle']:
-                st.markdown(f"  - {pen[0]}: {pen[1]:.2f} €")
-        st.markdown("---")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-else:
-    st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
-
 
