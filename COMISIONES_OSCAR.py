@@ -4,9 +4,9 @@ import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos CSS para visual
+# Estilos
 st.markdown("""
-    <style>
+<style>
     .main {
         background-color: white !important;
         color: black !important;
@@ -27,13 +27,9 @@ st.markdown("""
         margin-top: 25px;
         border: 1px solid #cce5ff;
     }
-    .checkbox-col {
-        padding-right: 10px;
-    }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
-# Logo (intenta cargarlo si existe)
 try:
     logo = Image.open("LOGO-HRMOTOR-RGB.png")
 except:
@@ -46,7 +42,6 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
-# Subida archivo Excel
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
@@ -55,7 +50,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 def limpiar_eur(valor):
     try:
         s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
-        # Quitar puntos como miles y cambiar coma decimal a punto
         s = s.replace(".", "").replace(",", ".")
         return float(s) if s else 0.0
     except:
@@ -228,16 +222,13 @@ if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
 
-    # Limpiar el campo beneficio financiación con formato europeo
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Si no tienes el campo "Delegación", usa la última columna
     if "Delegación" not in df_raw.columns:
         df_raw["Delegación"] = df_raw.iloc[:, -1]
     else:
         df_raw["Delegación"] = df_raw["Delegación"]
 
-    # Agrupar datos
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
     entregas_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
@@ -259,7 +250,6 @@ if uploaded_file is not None:
 
     resumen = resumen.fillna(0).reset_index(drop=True)
 
-    # Filtros
     delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
     seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
 
@@ -277,30 +267,29 @@ if uploaded_file is not None:
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
     st.markdown("### Resultados por Comercial")
 
-    # Diccionarios para estados checkbox
-    com_nuevo = {}
-    com_jefe = {}
-
-    # Mostrar checkboxes sin texto repetido, solo caja, y en línea con comercial
     for idx, row in resumen.iterrows():
         owner = row["ownername"]
-        cols = st.columns([0.1, 1, 0.1, 1])
-        with cols[1]:
-            st.markdown(f"**{owner}**")
-        with cols[0]:
-            com_nuevo[owner] = st.checkbox("", key=f"nuevo_{owner}")
-        with cols[2]:
-            com_jefe[owner] = st.checkbox("", key=f"jefe_{owner}")
+        # Cargar estado de flags desde session_state para persistencia
+        key_nuevo = f"nuevo_{owner}"
+        key_jefe = f"jefe_{owner}"
 
-    st.markdown("---")
+        if key_nuevo not in st.session_state:
+            st.session_state[key_nuevo] = False
+        if key_jefe not in st.session_state:
+            st.session_state[key_jefe] = False
 
-    # Calcular y mostrar resultados con flags
-    for idx, row in resumen.iterrows():
-        owner = row["ownername"]
-        es_nuevo = com_nuevo.get(owner, False)
-        es_jefe = com_jefe.get(owner, False)
+        # Mostrar checkboxes dentro del resultado de cada comercial
+        cols = st.columns([1, 1])
+        nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
+        jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
 
-        resultado = calcular_comision_fila(row, es_nuevo, es_jefe)
+        # Guardar cambios para que recalcule instantáneo
+        if st.session_state[key_nuevo] != nuevo_flag or st.session_state[key_jefe] != jefe_flag:
+            st.session_state[key_nuevo] = nuevo_flag
+            st.session_state[key_jefe] = jefe_flag
+            st.experimental_rerun()
+
+        resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
 
         st.markdown(f"## Comercial: **{owner}**")
         st.markdown(f"- Delegación: {row['delegacion']}")
