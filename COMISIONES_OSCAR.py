@@ -1,10 +1,11 @@
 import streamlit as st
 from PIL import Image
 import pandas as pd
+import re
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos CSS
+# Estilos
 st.markdown("""
     <style>
     .main {
@@ -43,198 +44,204 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
-# Subida de archivo Excel
+# Subida de Excel
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Función para limpiar euros con formato personalizado "EUR1.234,56"
 def limpiar_eur(valor):
     try:
-        # Elimina "EUR", puntos (miles), y cambia coma decimal por punto
-        return float(str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip())
+        s = str(valor).strip()
+        s = s.replace("EUR", "").strip()
+        # Quitar puntos solo como separador de miles
+        s = re.sub(r'\.(?=\d{3},)', '', s)
+        # Cambiar coma decimal por punto
+        s = s.replace(",", ".")
+        return float(s)
     except:
         return 0.0
 
-if uploaded_file is not None:
+# Funciones para cálculos de comisión
+def calcular_tarifa_entrega(n):
+    if n <= 5:
+        return 20
+    elif 6 <= n <= 8:
+        return 20
+    elif 9 <= n <= 11:
+        return 40
+    elif 12 <= n <= 20:
+        return 60
+    elif 21 <= n <= 25:
+        return 75
+    elif 26 <= n <= 30:
+        return 80
+    else:
+        return 90
 
-    # Funciones cálculo comisiones
-    def calcular_tarifa_entrega(n):
-        if n <= 5:
-            return 20
-        elif 6 <= n <= 8:
-            return 20
-        elif 9 <= n <= 11:
-            return 40
-        elif 12 <= n <= 20:
-            return 60
-        elif 21 <= n <= 25:
-            return 75
-        elif 26 <= n <= 30:
-            return 80
-        else:
-            return 90
+def calcular_comision_entregas(total, otras, nueva):
+    normales = total - otras
+    tarifa = calcular_tarifa_entrega(total)
+    if nueva and total <= 5:
+        return normales * 20 + otras * 10
+    elif not nueva and total <= 5:
+        return 0
+    else:
+        return normales * tarifa + otras * (tarifa * 0.5)
 
-    def calcular_comision_entregas(total, otras, nueva):
-        normales = total - otras
-        tarifa = calcular_tarifa_entrega(total)
-        if nueva and total <= 5:
-            return normales * 20 + otras * 10
-        elif not nueva and total <= 5:
-            return 0
-        else:
-            return normales * tarifa + otras * (tarifa * 0.5)
+def calcular_comision_por_beneficio(b):
+    if b <= 5000:
+        return 0
+    elif b <= 8000:
+        return b * 0.03
+    elif b <= 12000:
+        return b * 0.04
+    elif b <= 17000:
+        return b * 0.05
+    elif b <= 25000:
+        return b * 0.06
+    elif b <= 30000:
+        return b * 0.07
+    elif b <= 50000:
+        return b * 0.08
+    else:
+        return b * 0.09
 
-    def calcular_comision_por_beneficio(b):
-        if b <= 5000:
-            return 0
-        elif b <= 8000:
-            return b * 0.03
-        elif b <= 12000:
-            return b * 0.04
-        elif b <= 17000:
-            return b * 0.05
-        elif b <= 25000:
-            return b * 0.06
-        elif b <= 30000:
-            return b * 0.07
-        elif b <= 50000:
-            return b * 0.08
-        else:
-            return b * 0.09
+def calcular_incentivo_garantias(f):
+    if f <= 4500:
+        return f * 0.03
+    elif f <= 8000:
+        return f * 0.05
+    elif f <= 12000:
+        return f * 0.06
+    elif f <= 17000:
+        return f * 0.08
+    else:
+        return f * 0.10
 
-    def calcular_incentivo_garantias(f):
-        if f <= 4500:
-            return f * 0.03
-        elif f <= 8000:
-            return f * 0.05
-        elif f <= 12000:
-            return f * 0.06
-        elif f <= 17000:
-            return f * 0.08
-        else:
-            return f * 0.10
+def calcular_comision_fila(fila):
+    entregas = int(fila.get('entregas', 0))
+    entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
+    entregas_compartidas = int(fila.get('entregas_compartidas', 0))
+    nueva_incorporacion = bool(fila.get('nueva_incorporacion', False))
+    compras = int(fila.get('compras', 0))
+    vh_cambio = int(fila.get('vh_cambio', 0))
+    garantias_premium = int(fila.get('garantias_premium', 0))
+    facturacion_garantias = float(fila.get('facturacion_garantias', 0))
+    beneficio_financiero = float(fila.get('beneficio_financiero', 0))
+    beneficio_financiacion_total = float(fila.get('beneficio_financiacion_total', 0))
+    entregas_con_financiacion = int(fila.get('entregas_con_financiacion', 0))
+    entregas_rapidas = int(fila.get('entregas_rapidas', 0))
+    entregas_stock_largo = int(fila.get('entregas_stock_largo', 0))
+    entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
+    resenas = int(fila.get('resenas', 0))
+    n_casos_venta_superior = int(fila.get('n_casos_venta_superior', 0))
 
-    def calcular_comision_fila(fila):
-        entregas = int(fila.get('entregas', 0))
-        entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
-        entregas_compartidas = int(fila.get('entregas_compartidas', 0))
-        nueva_incorporacion = bool(fila.get('nueva_incorporacion', False))
-        compras = int(fila.get('compras', 0))
-        vh_cambio = int(fila.get('vh_cambio', 0))
-        garantias_premium = int(fila.get('garantias_premium', 0))
-        facturacion_garantias = float(fila.get('facturacion_garantias', 0))
-        beneficio_financiero = float(fila.get('beneficio_financiero', 0))
-        beneficio_financiacion_total = float(fila.get('beneficio_financiacion_total', 0))
-        entregas_con_financiacion = int(fila.get('entregas_con_financiacion', 0))
-        entregas_rapidas = int(fila.get('entregas_rapidas', 0))
-        entregas_stock_largo = int(fila.get('entregas_stock_largo', 0))
-        entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
-        resenas = int(fila.get('resenas', 0))
-        n_casos_venta_superior = int(fila.get('n_casos_venta_superior', 0))
+    bono_ventas_sobre_pvp = 0
 
-        bono_ventas_sobre_pvp = 0
+    # DEBUG para ver beneficio que se usa en cálculo
+    st.write(f"DEBUG: Comercial={fila.get('ownername', 'N/A')}, beneficio_financiacion_total={beneficio_financiacion_total}")
 
-        comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
-        comision_compras = compras * 60
-        comision_vh_cambio = vh_cambio * 30
-        bono_financiacion = entregas_con_financiacion * 10
-        bono_rapida = entregas_rapidas * 5
-        bono_stock = entregas_stock_largo * 5
-        penalizacion_descuento = entregas_con_descuento * -15
-        comision_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_total)
-        bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
-        bono_resenas = resenas * 5 if entregas > 0 and (resenas / entregas) >= 0.5 else 0
-        comision_entregas_compartidas = entregas_compartidas * 30
+    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
+    comision_compras = compras * 60
+    comision_vh_cambio = vh_cambio * 30
+    bono_financiacion = entregas_con_financiacion * 10
+    bono_rapida = entregas_rapidas * 5
+    bono_stock = entregas_stock_largo * 5
+    penalizacion_descuento = entregas_con_descuento * -15
+    comision_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_total)
+    bono_garantias = calcular_incentivo_garantias(facturacion_garantias)
+    bono_resenas = resenas * 5 if entregas > 0 and (resenas / entregas) >= 0.5 else 0
+    comision_entregas_compartidas = entregas_compartidas * 30
 
-        prima_total = sum([
-            comision_entregas, comision_entregas_compartidas, comision_compras, comision_vh_cambio,
-            bono_financiacion, bono_rapida, bono_stock, penalizacion_descuento,
-            comision_beneficio, bono_garantias, bono_resenas, bono_ventas_sobre_pvp
-        ])
+    prima_total = sum([
+        comision_entregas, comision_entregas_compartidas, comision_compras, comision_vh_cambio,
+        bono_financiacion, bono_rapida, bono_stock, penalizacion_descuento,
+        comision_beneficio, bono_garantias, bono_resenas, bono_ventas_sobre_pvp
+    ])
 
-        penalizacion_total = 0
-        penalizaciones_detalle = []
-        if entregas > 0 and garantias_premium / entregas < 0.4:
-            p = prima_total * 0.10
-            penalizacion_total += p
-            penalizaciones_detalle.append(("Garantías premium < 40%", p))
-        if entregas > 0 and resenas / entregas <= 0.5:
-            p = prima_total * 0.10
-            penalizacion_total += p
-            penalizaciones_detalle.append(("Reseñas ≤ 50%", p))
-        if beneficio_financiero < 4000:
-            p = prima_total * 0.10
-            penalizacion_total += p
-            penalizaciones_detalle.append(("Beneficio financiero < 4000 €", p))
+    penalizacion_total = 0
+    penalizaciones_detalle = []
+    if entregas > 0 and garantias_premium / entregas < 0.4:
+        p = prima_total * 0.10
+        penalizacion_total += p
+        penalizaciones_detalle.append(("Garantías premium < 40%", p))
+    if entregas > 0 and resenas / entregas <= 0.5:
+        p = prima_total * 0.10
+        penalizacion_total += p
+        penalizaciones_detalle.append(("Reseñas ≤ 50%", p))
+    if beneficio_financiero < 4000:
+        p = prima_total * 0.10
+        penalizacion_total += p
+        penalizaciones_detalle.append(("Beneficio financiero < 4000 €", p))
 
-        prima_final = prima_total - penalizacion_total
+    prima_final = prima_total - penalizacion_total
 
-        return {
-            'prima_total': prima_total,
-            'prima_final': prima_final,
-            'penalizaciones_detalle': penalizaciones_detalle,
-            'desglose': {
-                'comision_entregas': comision_entregas,
-                'comision_entregas_compartidas': comision_entregas_compartidas,
-                'comision_compras': comision_compras,
-                'comision_vh_cambio': comision_vh_cambio,
-                'comision_beneficio': comision_beneficio,
-                'bono_financiacion': bono_financiacion,
-                'bono_rapida': bono_rapida,
-                'bono_stock': bono_stock,
-                'penalizacion_descuento': penalizacion_descuento,
-                'bono_garantias': bono_garantias,
-                'bono_resenas': bono_resenas,
-                'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
-            }
+    return {
+        'prima_total': prima_total,
+        'prima_final': prima_final,
+        'penalizaciones_detalle': penalizaciones_detalle,
+        'desglose': {
+            'comision_entregas': comision_entregas,
+            'comision_entregas_compartidas': comision_entregas_compartidas,
+            'comision_compras': comision_compras,
+            'comision_vh_cambio': comision_vh_cambio,
+            'comision_beneficio': comision_beneficio,
+            'bono_financiacion': bono_financiacion,
+            'bono_rapida': bono_rapida,
+            'bono_stock': bono_stock,
+            'penalizacion_descuento': penalizacion_descuento,
+            'bono_garantias': bono_garantias,
+            'bono_resenas': bono_resenas,
+            'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
         }
+    }
 
-    # Lectura y limpieza
+if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()
-    df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].str.strip()
+    df_raw.columns = df_raw.columns.str.strip()  # limpiar espacios en columnas
+
+    # Limpiar el campo beneficio financiación comercial
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Creamos resumen con suma correcta de beneficios por comercial
+    # Crear resumen por Opportunity Owner
     resumen = pd.DataFrame()
-    resumen["Opportunity Owner"] = df_raw["Opportunity Owner"].unique()
+    resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
+    resumen = resumen.set_index("ownername")
 
-    # Contar entregas tipo Venta
+    # Calcular columnas necesarias agrupando
+
     entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    resumen = resumen.set_index("Opportunity Owner")
     resumen["entregas"] = entregas
-    resumen["entregas"] = resumen["entregas"].fillna(0).astype(int)
 
-    # Entregas compartidas (Coopropietario)
-    compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"].str.strip() != "")].groupby("Opportunity Owner").size()
+    compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
     resumen["entregas_compartidas"] = compartidas
-    resumen["entregas_compartidas"] = resumen["entregas_compartidas"].fillna(0).astype(int)
 
-    # Compras tipo Tasación
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
     resumen["compras"] = compras
-    resumen["compras"] = resumen["compras"].fillna(0).astype(int)
 
-    # Vehículo cambio tipo Cambio
     cambios = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
     resumen["vh_cambio"] = cambios
-    resumen["vh_cambio"] = resumen["vh_cambio"].fillna(0).astype(int)
 
-    # Descuentos no vacíos
     con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
     resumen["entregas_con_descuento"] = con_descuento
-    resumen["entregas_con_descuento"] = resumen["entregas_con_descuento"].fillna(0).astype(int)
 
-    # Beneficio financiación comercial suma correcta
     beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
     resumen["beneficio_financiacion_total"] = beneficio
-    resumen["beneficio_financiacion_total"] = resumen["beneficio_financiacion_total"].fillna(0).astype(float)
 
-    # Otras columnas para evitar errores
+    # Rellenar columnas faltantes con ceros
+    for col in [
+        "entregas", "entregas_compartidas", "compras", "vh_cambio", "beneficio_financiacion_total", "entregas_con_descuento"
+    ]:
+        if col not in resumen:
+            resumen[col] = 0
+    resumen.fillna(0, inplace=True)
+
+    # Agregar columnas que la función necesita aunque no tengas datos todavía
     resumen["nueva_incorporacion"] = False
     resumen["facturacion_garantias"] = 0
-    resumen["entregas_otra_delegacion"] = 0
+    resumen["beneficio_financiero"] = resumen["beneficio_financiacion_total"]  # si quieres usarlo también
     resumen["entregas_con_financiacion"] = 0
     resumen["entregas_rapidas"] = 0
     resumen["entregas_stock_largo"] = 0
@@ -244,19 +251,17 @@ if uploaded_file is not None:
 
     resumen = resumen.reset_index()
 
-    # Aplicar cálculo fila a fila
     resultados = []
     for _, fila in resumen.iterrows():
         resultado = calcular_comision_fila(fila)
         resultados.append({
-            'ownername': fila['Opportunity Owner'],
+            'ownername': fila['ownername'],
             'prima_final': resultado['prima_final'],
             'prima_total': resultado['prima_total'],
             'penalizaciones_detalle': resultado['penalizaciones_detalle'],
             'desglose': resultado['desglose']
         })
 
-    # Mostrar resultados en Streamlit
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
     st.markdown("### Resultados por Comercial")
 
@@ -264,13 +269,18 @@ if uploaded_file is not None:
         st.markdown(f"## Comercial: **{r['ownername']}**")
         st.markdown(f"### Prima total antes de penalizaciones: {r['prima_total']:.2f} €")
         st.markdown(f"### Prima final a cobrar: **{r['prima_final']:.2f} €**")
-        st.markdown("**Desglose de conceptos:**")
-        for concepto, valor in r['desglose'].items():
-            st.markdown(f"- {concepto.replace('_', ' ').capitalize()}: {valor:.2f} €")
-        if r['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones aplicadas:**")
-            for motivo, importe in r['penalizaciones_detalle']:
-                st.markdown(f"- {motivo}: -{importe:.2f} €")
+        st.markdown("#### Desglose de conceptos:")
+        st.markdown(f"- Comision entregas: {r['desglose']['comision_entregas']:.2f} €")
+        st.markdown(f"- Comision entregas compartidas: {r['desglose']['comision_entregas_compartidas']:.2f} €")
+        st.markdown(f"- Comision compras: {r['desglose']['comision_compras']:.2f} €")
+        st.markdown(f"- Comision vh cambio: {r['desglose']['comision_vh_cambio']:.2f} €")
+        st.markdown(f"- Comision beneficio: {r['desglose']['comision_beneficio']:.2f} €")
+        st.markdown(f"- Bono financiacion: {r['desglose']['bono_financiacion']:.2f} €")
+        st.markdown(f"- Bono rapida: {r['desglose']['bono_rapida']:.2f} €")
+        st.markdown(f"- Bono stock: {r['desglose']['bono_stock']:.2f} €")
+        st.markdown(f"- Penalizacion descuento: {r['desglose']['penalizacion_descuento']:.2f} €")
+        st.markdown(f"- Bono garantias: {r['desglose']['bono_garantias']:.2f} €")
+        st.markdown(f"- Bono resenas: {r['desglose']['bono_resenas']:.2f} €")
         st.markdown("---")
 
     st.markdown("</div>", unsafe_allow_html=True)
