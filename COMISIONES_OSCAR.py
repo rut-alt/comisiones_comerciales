@@ -42,120 +42,73 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
+# === Cargar archivo Excel comisiones ===
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-import re
-
+# === Funciones ===
 def limpiar_eur(valor):
     try:
-        if pd.isna(valor):
-            return 0.0
-        s = str(valor)
-        s = re.sub(r"[^\d,\.]", "", s)  # Elimina todo excepto dígitos, puntos y comas
-        if s.count(",") == 1:
-            # Formato europeo típico: 12.345,67
-            s = s.replace(".", "")  # Elimina separadores de miles
-            s = s.replace(",", ".")  # Convierte coma decimal a punto
-        elif s.count(".") == 1 and s.count(",") == 0:
-            # Formato inglés (12,345.67) por si acaso
-            s = s.replace(",", "")  # Elimina separadores de miles
-        return float(s)
+        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
+        s = s.replace(".", "").replace(",", ".")
+        return float(s) if s else 0.0
     except:
         return 0.0
 
-
 def calcular_tarifa_entrega_vendedor(n):
-    if n <= 6:
-        return 0
-    elif 7 <= n <= 9:
-        return 20
-    elif 10 <= n <= 11:
-        return 40
-    elif 12 <= n <= 15:
-        return 60
-    elif 16 <= n <= 20:
-        return 65
-    elif 21 <= n <= 25:
-        return 75
-    elif 26 <= n <= 30:
-        return 80
-    elif 31 <= n <= 35:
-        return 90
-    else:
-        return 95
+    if n <= 6: return 0
+    elif n <= 9: return 20
+    elif n <= 11: return 40
+    elif n <= 15: return 60
+    elif n <= 20: return 65
+    elif n <= 25: return 75
+    elif n <= 30: return 80
+    elif n <= 35: return 90
+    else: return 95
 
 def calcular_tarifa_entrega_jefe(n):
-    if n <= 6:
-        return 20
-    elif 7 <= n <= 9:
-        return 20
-    elif 10 <= n <= 11:
-        return 40
-    elif 12 <= n <= 15:
-        return 60
-    elif 16 <= n <= 20:
-        return 65
-    elif 21 <= n <= 25:
-        return 75
-    elif 26 <= n <= 30:
-        return 80
-    elif 31 <= n <= 35:
-        return 90
-    else:
-        return 95
+    if n <= 6: return 20
+    elif n <= 9: return 20
+    elif n <= 11: return 40
+    elif n <= 15: return 60
+    elif n <= 20: return 65
+    elif n <= 25: return 75
+    elif n <= 30: return 80
+    elif n <= 35: return 90
+    else: return 95
 
 def calcular_comision_entregas(total, otras, es_nuevo, es_jefe):
     normales = total - otras
     if es_jefe:
         tarifa = calcular_tarifa_entrega_jefe(total)
-        comision_normales = normales * tarifa
-        comision_otras = otras * (tarifa * 0.5)
-        return comision_normales + comision_otras
+        return normales * tarifa + otras * (tarifa * 0.5)
     else:
         tarifa = calcular_tarifa_entrega_vendedor(total)
         if es_nuevo and total <= 6:
-            comision_normales = normales * 20
-            comision_otras = otras * 10
-            return comision_normales + comision_otras
+            return normales * 20 + otras * 10
         elif not es_nuevo and total <= 6:
             return 0
         else:
-            comision_normales = normales * tarifa
-            comision_otras = otras * (tarifa * 0.5)
-            return comision_normales + comision_otras
+            return normales * tarifa + otras * (tarifa * 0.5)
 
 def calcular_comision_por_beneficio(b):
-    if b <= 5000:
-        return 0
-    elif b <= 8000:
-        return b * 0.03
-    elif b <= 12000:
-        return b * 0.04
-    elif b <= 17000:
-        return b * 0.05
-    elif b <= 25000:
-        return b * 0.06
-    elif b <= 30000:
-        return b * 0.07
-    elif b <= 50000:
-        return b * 0.08
-    else:
-        return b * 0.09
+    if b <= 5000: return 0
+    elif b <= 8000: return b * 0.03
+    elif b <= 12000: return b * 0.04
+    elif b <= 17000: return b * 0.05
+    elif b <= 25000: return b * 0.06
+    elif b <= 30000: return b * 0.07
+    elif b <= 50000: return b * 0.08
+    else: return b * 0.09
 
 def calcular_incentivo_garantias(f):
-    if f <= 4500:
-        return f * 0.03
-    elif f <= 8000:
-        return f * 0.05
-    elif f <= 12000:
-        return f * 0.06
-    elif f <= 17000:
-        return f * 0.08
-    else:
-        return f * 0.10
+    if f <= 4500: return f * 0.03
+    elif f <= 8000: return f * 0.05
+    elif f <= 12000: return f * 0.06
+    elif f <= 17000: return f * 0.08
+    else: return f * 0.10
 
 def calcular_comision_fila(fila, es_nuevo, es_jefe):
     entregas = int(fila.get('entregas', 0))
@@ -223,116 +176,62 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
             'bono_financiacion': bono_financiacion,
             'bono_rapida': bono_rapida,
             'bono_stock': bono_stock,
-            'penalizacion_descuento': penalizacion_descuento,
             'bono_garantias': bono_garantias,
             'bono_resenas': bono_resenas,
-            'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
+            'penalizacion_descuento': penalizacion_descuento
         }
     }
 
+# === Proceso Principal ===
 if uploaded_file is not None:
-    df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()
+    df = pd.read_excel(uploaded_file)
+    df.columns = df.columns.str.strip()
+    comerciales = df['nombre'].dropna().unique().tolist()
+    comerciales.sort()
 
-    # Aplicar limpieza del campo beneficio financiación comercial para formato europeo
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
+    st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+    seleccion_comercial = st.selectbox("Selecciona un comercial", ["Todos"] + comerciales)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    if "Delegación" not in df_raw.columns:
-        df_raw["Delegación"] = df_raw.iloc[:, -1]
-    else:
-        df_raw["Delegación"] = df_raw["Delegación"]
-
-    entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    entregas_compartidas = df_raw[df_raw["Opportunity Record Type"] == "Venta compartida"].groupby("Opportunity Owner").size()
-    compras = df_raw[df_raw["Opportunity Record Type"] == "Compra"].groupby("Opportunity Owner").size()
-    vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Vehículo cambio"].groupby("Opportunity Owner").size()
-    garantias_premium = df_raw[df_raw["Opportunity Record Type"] == "Garantía Premium"].groupby("Opportunity Owner").size()
-    facturacion_garantias = df_raw.groupby("Opportunity Owner")["Importe"].sum()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-    entregas_con_financiacion = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Financiación"] == "Sí")].groupby("Opportunity Owner").size()
-    entregas_rapidas = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Entrega rápida"] == "Sí")].groupby("Opportunity Owner").size()
-    entregas_stock_largo = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["Entrega stock largo"] == "Sí")].groupby("Opportunity Owner").size()
-    entregas_con_descuento = df_raw[(df_raw["Opportunity Record Type"] == "Venta") & (df_raw["¿Descuento?"] == "Sí")].groupby("Opportunity Owner").size()
-    resenas = df_raw[df_raw["Opportunity Record Type"] == "Reseña"].groupby("Opportunity Owner").size()
-    n_casos_venta_superior = df_raw[df_raw["Opportunity Record Type"] == "Caso venta superior"].groupby("Opportunity Owner").size()
-
-    resumen = pd.DataFrame({
-        'ownername': entregas.index,
-        'entregas': entregas.values,
-        'entregas_compartidas': entregas_compartidas.reindex(entregas.index, fill_value=0).values,
-        'compras': compras.reindex(entregas.index, fill_value=0).values,
-        'vh_cambio': vh_cambio.reindex(entregas.index, fill_value=0).values,
-        'garantias_premium': garantias_premium.reindex(entregas.index, fill_value=0).values,
-        'facturacion_garantias': facturacion_garantias.reindex(entregas.index, fill_value=0).values,
-        'beneficio_financiacion_total': beneficio_financiacion_total.reindex(entregas.index, fill_value=0).values,
-        'entregas_con_financiacion': entregas_con_financiacion.reindex(entregas.index, fill_value=0).values,
-        'entregas_rapidas': entregas_rapidas.reindex(entregas.index, fill_value=0).values,
-        'entregas_stock_largo': entregas_stock_largo.reindex(entregas.index, fill_value=0).values,
-        'entregas_con_descuento': entregas_con_descuento.reindex(entregas.index, fill_value=0).values,
-        'resenas': resenas.reindex(entregas.index, fill_value=0).values,
-        'n_casos_venta_superior': n_casos_venta_superior.reindex(entregas.index, fill_value=0).values
-    })
-
-    resumen["es_nuevo"] = resumen["ownername"].str.contains("Nuevo", case=False)
-    resumen["es_jefe"] = resumen["ownername"].str.contains("Jefe", case=False)
-
-    resumen['prima_total'] = 0.0
-    resumen['prima_final'] = 0.0
-    resumen['penalizaciones'] = None
-    resumen['desglose'] = None
-
-    for i, fila in resumen.iterrows():
-        resultado = calcular_comision_fila(fila, fila["es_nuevo"], fila["es_jefe"])
-        resumen.at[i, 'prima_total'] = resultado['prima_total']
-        resumen.at[i, 'prima_final'] = resultado['prima_final']
-        resumen.at[i, 'penalizaciones'] = resultado['penalizaciones_detalle']
-        resumen.at[i, 'desglose'] = resultado['desglose']
-
-    comerciales = resumen['ownername'].unique().tolist()
-    comerciales.insert(0, "Todos")
-    seleccion_comercial = st.selectbox("Selecciona un comercial", comerciales)
-
-    if seleccion_comercial != "Todos":
-        resumen = resumen[resumen["ownername"] == seleccion_comercial]
+    df_filtrado = df if seleccion_comercial == "Todos" else df[df["nombre"] == seleccion_comercial]
 
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### Resultado de comisiones")
-    for _, row in resumen.iterrows():
-        st.markdown(f"- Comercial: **{row['ownername']}** → Comisión final: {row['prima_final']:.2f} €")
+    for _, fila in df_filtrado.iterrows():
+        nombre = fila.get("nombre", "Desconocido")
+        es_nuevo = bool(fila.get("es_nuevo", False))
+        es_jefe = bool(fila.get("es_jefe", False))
+
+        resultado = calcular_comision_fila(fila, es_nuevo, es_jefe)
+
+        st.markdown(f"### {nombre}")
+        st.markdown(f"- Prima total sin penalizaciones: {resultado['prima_total']:.2f} €")
+        st.markdown(f"- Penalizaciones: {sum(p[1] for p in resultado['penalizaciones_detalle']):.2f} €")
+        for detalle, valor in resultado['penalizaciones_detalle']:
+            st.markdown(f"  - {detalle}: {valor:.2f} €")
+        st.markdown(f"#### 👉 Prima final: **{resultado['prima_final']:.2f} €**")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Aquí está el bloque para subir el segundo archivo ---
-    st.markdown("<div class='input-section'>", unsafe_allow_html=True)
-    st.markdown("### 📂 Cargar archivo Excel con stock >150 por comercial")
-    uploaded_stock_file = st.file_uploader("Sube un archivo .xlsx con stock >150", type=["xlsx"], key="stock_uploader")
+# === Segundo archivo: oportunidades stock largo ===
+st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+st.markdown("### 📂 Cargar archivo Excel de oportunidades en stock largo")
+uploaded_stock_file = st.file_uploader("Sube archivo con oportunidades (stock largo >150 días)", type=["xlsx"], key="stock")
+st.markdown("</div>", unsafe_allow_html=True)
+
+if uploaded_stock_file is not None:
+    df_stock = pd.read_excel(uploaded_stock_file)
+    df_stock.columns = df_stock.columns.str.strip()
+    df_stock_filtrado = df_stock[df_stock["dias en stock"] > 150]
+
+    filas_por_comercial = df_stock_filtrado.groupby("Opportunity Owner").size().reset_index(name="filas_stock_mayor_150")
+
+    if seleccion_comercial != "Todos":
+        filas_por_comercial = filas_por_comercial[filas_por_comercial["Opportunity Owner"] == seleccion_comercial]
+
+    st.markdown("<div class='result-section'>", unsafe_allow_html=True)
+    st.markdown("### Filas con días en stock > 150 por Comercial")
+    if not filas_por_comercial.empty:
+        for _, row in filas_por_comercial.iterrows():
+            st.markdown(f"- Comercial: **{row['Opportunity Owner']}** → Filas con stock >150 días: {row['filas_stock_mayor_150']}")
+    else:
+        st.markdown("No hay filas con días en stock >150 para la selección actual.")
     st.markdown("</div>", unsafe_allow_html=True)
-
-    if uploaded_stock_file is not None:
-        df_stock = pd.read_excel(uploaded_stock_file)
-        df_stock.columns = df_stock.columns.str.strip()
-
-        if "ownername" in df_stock.columns and "stock" in df_stock.columns:
-            df_stock["stock"] = pd.to_numeric(df_stock["stock"], errors="coerce").fillna(0)
-            stock_mayor_150 = df_stock[df_stock["stock"] > 150].groupby("ownername")["stock"].count().reset_index()
-            stock_mayor_150.columns = ["ownername", "stock_mayor_150"]
-
-            if seleccion_comercial != "Todos":
-                stock_filtrado = stock_mayor_150[stock_mayor_150["ownername"] == seleccion_comercial]
-            else:
-                stock_filtrado = stock_mayor_150
-
-            st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-            st.markdown("### Stock >150 unidades por Comercial")
-
-            if not stock_filtrado.empty:
-                for _, row_stock in stock_filtrado.iterrows():
-                    st.markdown(f"- Comercial: **{row_stock['ownername']}** → Stock >150 unidades: {row_stock['stock_mayor_150']}")
-            else:
-                st.markdown("No hay datos de stock >150 para la selección actual.")
-
-            st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.warning("El archivo de stock debe contener las columnas 'ownername' y 'stock'.")
-
-else:
-    st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
