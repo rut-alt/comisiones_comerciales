@@ -263,6 +263,17 @@ if uploaded_file is not None:
         st.markdown(f"## Comercial: **{r['ownername']}**")
         st.markdown(f"### Prima total antes de penalizaciones: {r['prima_total']:.2f} €")
         st.markdown(f"### Prima final a cobrar: **{r['prima_final']:.2f} €**")
+
+        st.markdown("**Desglose de conceptos:**")
+        desglose = r['desglose']
+        for concepto, valor in desglose.items():
+            st.markdown(f"- {concepto.replace('_', ' ').capitalize()}: {valor:.2f} €")
+
+        if r['penalizaciones_detalle']:
+            st.markdown("**Penalizaciones aplicadas:**")
+            for motivo, importe in r['penalizaciones_detalle']:
+                st.markdown(f"- {motivo}: -{importe:.2f} €")
+
         st.markdown("---")
 
     st.markdown("</div>", unsafe_allow_html=True)
