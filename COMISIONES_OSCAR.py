@@ -51,11 +51,16 @@ def limpiar_eur(valor):
 
     try:
         s = str(valor)
-        s = re.sub(r"[^\d,.-]", "", s)  # quitar todo menos dígitos, coma, punto y guion
-        s = s.replace(".", "").replace(",", ".")  # quitar separador miles y convertir decimal
-        return float(s)
+        s = re.sub(r"[^\d,.-]", "", s)  # Quitar todo menos dígitos, coma, punto y guion
+        # Aquí asumo que el punto es separador de miles, la coma decimal
+        # Primero eliminar puntos que separan miles:
+        s = s.replace(".", "")
+        # Cambiar la coma decimal a punto decimal para float:
+        s = s.replace(",", ".")
+        return float(s) if s else 0.0
     except:
         return 0.0
+
 
 
 def calcular_tarifa_entrega_vendedor(n):
