@@ -48,12 +48,11 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-def limpiar_eur_mejor(valor):
+def limpiar_eur(valor):
     try:
-        s = str(valor)
-        s = re.sub(r"[^\d,.-]", "", s)  # quitar todo menos dígitos, coma, punto y guion
-        s = s.replace(".", "")           # quitar separador de miles
-        s = s.replace(",", ".")          # convertir decimal
+        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
+        s = re.sub(r"[^\d,.-]", "", s)  # quitar cualquier otro caracter que no sea dígito, coma, punto, guion
+        s = s.replace(".", "").replace(",", ".")  # eliminar separador miles y cambiar decimal
         return float(s) if s else 0.0
     except:
         return 0.0
@@ -208,36 +207,4 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
         'desglose': {
             'comision_entregas': comision_entregas,
             'comision_entregas_compartidas': comision_entregas_compartidas,
-            'comision_compras': comision_compras,
-            'comision_vh_cambio': comision_vh_cambio,
-            'comision_beneficio': comision_beneficio,
-            'bono_financiacion': bono_financiacion,
-            'bono_rapida': bono_rapida,
-            'bono_stock': bono_stock,
-            'penalizacion_descuento': penalizacion_descuento,
-            'bono_garantias': bono_garantias,
-            'bono_resenas': bono_resenas,
-            'bono_ventas_sobre_pvp': bono_ventas_sobre_pvp
-        }
-    }
-
-if uploaded_file is not None:
-    df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()
-
-    # Limpiar Beneficio financiación comercial con la nueva función
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur_mejor)
-
-    # Añadir columna Delegación si no existe
-    if "Delegación" not in df_raw.columns:
-        df_raw["Delegación"] = df_raw.iloc[:, -1]
-    else:
-        df_raw["Delegación"] = df_raw["Delegación"]
-
-    # Filtrar filas con beneficio financiación > 0 para sumar correctamente
-    df_filtrado_beneficio = df_raw[df_raw["Beneficio financiación comercial"] > 0]
-
-    # Calcular beneficio financiación total por comercial (solo suma > 0)
-    beneficio_financiacion_total = df_filtrado_beneficio.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-
-    # Contar entregas por Opportunity Owner (tipo "Venta
+            'comision_compras': comision_com
