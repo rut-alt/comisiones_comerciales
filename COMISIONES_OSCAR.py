@@ -1,24 +1,67 @@
 import streamlit as st
+from PIL import Image
 import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
+# Estilos visuales
+st.markdown("""
+    <style>
+    .main {
+        background-color: white !important;
+        color: black !important;
+    }
+    .input-section {
+        background-color: #2b344d;
+        color: white !important;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        border: 1px solid #ccc;
+    }
+    .result-section {
+        background-color: #2b344d;
+        color: white !important;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 25px;
+        border: 1px solid #cce5ff;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Logo
+try:
+    logo = Image.open("LOGO-HRMOTOR-RGB.png")
+except:
+    logo = None
+
+col1, col2 = st.columns([3, 1])
+with col1:
+    st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
+with col2:
+    if logo:
+        st.image(logo, width=250)
+
+# Sección carga archivo
+st.markdown("<div class='input-section'>", unsafe_allow_html=True)
+st.markdown("### 📂 Cargar archivo Excel con oportunidades")
+uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Función limpiar EUR
+
 def limpiar_eur(valor):
     try:
         s = str(valor).strip()
-        s = s.replace("EUR", "").strip()
-        s = s.replace(" ", "")
-        # Manejar múltiples puntos (separadores de miles)
-        if s.count(".") > 1:
-            partes = s.split(".")
-            s = "".join(partes[:-1]) + "." + partes[-1]
-        else:
-            s = s.replace(".", "")
-        s = s.replace(",", ".")
+        s = s.replace("EUR", "").replace("€", "").strip()
+        s = s.replace(".", "")  # quitar separador miles
+        s = s.replace(",", ".")  # cambiar coma decimal a punto
         return float(s)
     except:
         return 0.0
 
+# Función comisiones beneficio según escalado
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
         return 0
@@ -37,179 +80,29 @@ def calcular_comision_por_beneficio(b):
     else:
         return b * 0.09
 
-def calcular_tarifa_entrega(n, es_jefe):
-    if es_jefe:
-        if n <= 6:
-            return 20
-        elif n <= 9:
-            return 20
-        elif n <= 11:
-            return 40
-        elif n <= 15:
-            return 60
-        elif n <= 20:
-            return 65
-        elif n <= 25:
-            return 75
-        elif n <= 30:
-            return 80
-        elif n <= 35:
-            return 90
-        else:
-            return 95
-    else:
-        if n <= 5:
-            return 20
-        elif n <= 8:
-            return 20
-        elif n <= 11:
-            return 40
-        elif n <= 20:
-            return 60
-        elif n <= 25:
-            return 75
-        elif n <= 30:
-            return 80
-        else:
-            return 90
+# Si se sube archivo
+if uploaded_file is not None:
 
-def calcular_comision_entregas(total, otras, nueva, es_jefe):
-    tarifa = calcular_tarifa_entrega(total, es_jefe)
-    normales = total - otras
+    df = pd.read_excel(uploaded_file)
+    df.columns = df.columns.str.strip()
 
-    if nueva and not es_jefe:
-        if total <= 6:
-            return normales * 20 + otras * 10 * 0.5
-        else:
-            return normales * tarifa + otras * tarifa * 0.5
-    else:
-        if total <= 6 and es_jefe:
-            return total * 20
-        return normales * tarifa + otras * tarifa * 0.5
+    # Convertimos columna de beneficio
+    df["Beneficio financiación comercial"] = df["Beneficio financiación comercial"].apply(limpiar_eur)
 
-def calcular_comision_fila(fila, nueva, jefe):
-    entregas = int(fila.get('entregas', 0))
-    entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
-    entregas_compartidas = int(fila.get('entregas_compartidas', 0))
-    compras = int(fila.get('compras', 0))
-    vh_cambio = int(fila.get('vh_cambio', 0))
-    entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
-    beneficio_financiacion_total = float(fila.get('beneficio_financiacion_total', 0))
+    # Agrupar por comercial y delegación
+    resumen = df.groupby(["Opportunity Owner", "Delegación"])["Beneficio financiación comercial"].sum().reset_index()
+    resumen["comision_beneficio"] = resumen["Beneficio financiación comercial"].apply(calcular_comision_por_beneficio)
 
-    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva, jefe)
-    comision_entregas_compartidas = entregas_compartidas * 30
-    comision_compras = compras * 60
-    comision_vh_cambio = vh_cambio * 30
-    penalizacion_descuento = entregas_con_descuento * -15
-    comision_beneficio = calcular_comision_por_beneficio(beneficio_financiacion_total)
+    st.markdown("<div class='result-section'>", unsafe_allow_html=True)
+    st.markdown("### Resultados por Comercial")
 
-    prima_total = sum([
-        comision_entregas,
-        comision_entregas_compartidas,
-        comision_compras,
-        comision_vh_cambio,
-        comision_beneficio,
-        penalizacion_descuento,
-    ])
-
-    return {
-        "prima_total": prima_total,
-        "desglose": {
-            "comision_entregas": comision_entregas,
-            "comision_entregas_compartidas": comision_entregas_compartidas,
-            "comision_compras": comision_compras,
-            "comision_vh_cambio": comision_vh_cambio,
-            "penalizacion_descuento": penalizacion_descuento,
-            "comision_beneficio": comision_beneficio,
-        }
-    }
-
-st.title("Calculadora de Comisiones")
-
-uploaded_file = st.file_uploader("Sube un archivo Excel (.xlsx)", type=["xlsx"])
-
-if uploaded_file:
-    df_raw = pd.read_excel(uploaded_file)
-
-    # Limpieza y formateo
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
-    df_raw["Delegación"] = df_raw["Delegación"].astype(str).str.strip().str.upper()
-    df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].astype(str).str.strip()
-
-    # Evitar duplicados
-    df_raw = df_raw.drop_duplicates()
-
-    # Agrupar datos para resumen
-    resumen = df_raw.groupby(["Delegación", "Opportunity Owner"], dropna=False).agg(
-        entregas = ("Opportunity Record Type", lambda x: (x == "Venta").sum()),
-        entregas_otra_delegacion = ("Delegación", lambda x: (x != x.iloc[0]).sum()),
-        entregas_compartidas = ("Coopropietario de la Oportunidad", lambda x: x.notna().sum()),
-        compras = ("Opportunity Record Type", lambda x: (x == "Tasación").sum()),
-        vh_cambio = ("Opportunity Record Type", lambda x: (x == "Cambio").sum()),
-        entregas_con_descuento = ("Descuento", lambda x: x.notna().sum()),
-        beneficio_financiacion_total = ("Beneficio financiación comercial", "sum"),
-    ).reset_index()
-
-    resumen = resumen.sort_values(by=["Delegación", "Opportunity Owner"])
-
-    # Filtros
-    delegaciones = resumen["Delegación"].unique().tolist()
-    seleccion_delegacion = st.selectbox("Filtrar por Delegación", options=["Todas"] + delegaciones)
-
-    if seleccion_delegacion != "Todas":
-        resumen = resumen[resumen["Delegación"] == seleccion_delegacion]
-
-    comerciales = resumen["Opportunity Owner"].unique().tolist()
-    seleccion_comercial = st.selectbox("Filtrar por Comercial", options=["Todos"] + comerciales)
-
-    if seleccion_comercial != "Todos":
-        resumen = resumen[resumen["Opportunity Owner"] == seleccion_comercial]
-
-    # Checkbox para cada comercial
-    nuevos_dict = {}
-    jefe_dict = {}
-
-    st.markdown("### Comisiones por Comercial")
-
-    resultados = []
-
-    for idx, fila in resumen.iterrows():
-        col1, col2, col3 = st.columns([4, 1, 1])
-        with col1:
-            st.markdown(f"**{fila['Opportunity Owner']}** (Delegación: {fila['Delegación']})")
-            st.write(f"Entregas: {fila['entregas']}")
-            st.write(f"Entregas en otra delegación: {fila['entregas_otra_delegacion']}")
-            st.write(f"Entregas compartidas: {fila['entregas_compartidas']}")
-            st.write(f"Compras: {fila['compras']}")
-            st.write(f"VH Cambio: {fila['vh_cambio']}")
-            st.write(f"Entregas con descuento: {fila['entregas_con_descuento']}")
-            st.write(f"Beneficio financiación comercial total: {fila['beneficio_financiacion_total']:.2f} €")
-        with col2:
-            nuevos_dict[f"nuevo_{idx}"] = st.checkbox("Nueva incorporación", key=f"nuevo_{idx}")
-        with col3:
-            jefe_dict[f"jefe_{idx}"] = st.checkbox("Jefe de tienda", key=f"jefe_{idx}")
-
-    st.markdown("---")
-
-    for idx, fila in resumen.iterrows():
-        nueva = nuevos_dict.get(f"nuevo_{idx}", False)
-        jefe = jefe_dict.get(f"jefe_{idx}", False)
-
-        resultado = calcular_comision_fila(fila, nueva, jefe)
-        resultados.append({
-            "comercial": fila["Opportunity Owner"],
-            "delegacion": fila["Delegación"],
-            "prima_total": resultado["prima_total"],
-            "desglose": resultado["desglose"]
-        })
-
-    for r in resultados:
-        st.markdown(f"## Comercial: **{r['comercial']}** (Delegación: {r['delegacion']})")
-        st.markdown(f"### Prima total: {r['prima_total']:.2f} €")
-        st.markdown("**Desglose:**")
-        for clave, valor in r["desglose"].items():
-            st.write(f"- {clave.replace('_', ' ').capitalize()}: {valor:.2f} €")
+    for _, fila in resumen.iterrows():
+        st.markdown(f"#### Delegación: {fila['Delegación']}")
+        st.markdown(f"**Comercial:** {fila['Opportunity Owner']}")
+        st.markdown(f"- Beneficio total: {fila['Beneficio financiación comercial']:.2f} €")
+        st.markdown(f"- Comision beneficio: **{fila['comision_beneficio']:.2f} €**")
         st.markdown("---")
 
+    st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
