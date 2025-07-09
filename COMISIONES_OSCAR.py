@@ -235,16 +235,7 @@ if uploaded_file is not None:
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
     vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
     entregas_con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-
-# Mostrar en pantalla el total de beneficio y la comisión por beneficio
-st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-st.markdown("### 📊 Totales de Beneficio Financiación Comercial por Comercial")
-
-for comercial, beneficio in beneficio_financiacion_total.items():
-    comision = calcular_comision_por_beneficio(beneficio)
-    st.markdown(f"- **{comercial}**: {beneficio:.2f} € → Comisión: **{comision:.2f} €**")
+    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum() st.write(df_raw[["Opportunity Owner", "Beneficio financiación comercial"]])
 
     delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
 
