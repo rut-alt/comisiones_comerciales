@@ -49,17 +49,20 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Función limpieza para valores con "EUR" y formato europeo
 def limpiar_eur(valor):
     try:
-        return float(str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip())
+        texto = str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip()
+        return float(texto) if texto != "" else 0.0
     except:
         return 0.0
 
-# Funciones para calcular tarifas y comisiones según nuevo criterio
+# Funciones cálculo comisiones
+
 def calcular_tarifa_entrega_vendedor(n):
-    # Tarifas para vendedores
+    # Escalado para vendedores
     if n <= 6:
-        return 0  # no cobra (excepto nueva incorporación)
+        return 0  # no cobra por entregas si no es nueva incorporación
     elif 7 <= n <= 9:
         return 20
     elif 10 <= n <= 11:
@@ -78,7 +81,7 @@ def calcular_tarifa_entrega_vendedor(n):
         return 95
 
 def calcular_tarifa_entrega_jefe(n):
-    # Tarifas para jefes de tienda
+    # Escalado para jefes de tienda
     if n <= 6:
         return 20
     elif 7 <= n <= 9:
@@ -142,10 +145,12 @@ def calcular_incentivo_garantias(f):
     else:
         return f * 0.10
 
-def calcular_comision_fila(fila, nueva, jefe):
+def calcular_comision_fila(fila):
     entregas = int(fila.get('entregas', 0))
     entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
     entregas_compartidas = int(fila.get('entregas_compartidas', 0))
+    nueva_incorporacion = bool(fila.get('nueva_incorporacion', False))
+    jefe_de_tienda = bool(fila.get('jefe_de_tienda', False))
     compras = int(fila.get('compras', 0))
     vh_cambio = int(fila.get('vh_cambio', 0))
     garantias_premium = int(fila.get('garantias_premium', 0))
@@ -160,7 +165,7 @@ def calcular_comision_fila(fila, nueva, jefe):
 
     bono_ventas_sobre_pvp = 0
 
-    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva, jefe)
+    comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion, jefe_de_tienda)
     comision_compras = compras * 60
     comision_vh_cambio = vh_cambio * 30
     bono_financiacion = entregas_con_financiacion * 10
@@ -216,102 +221,93 @@ def calcular_comision_fila(fila, nueva, jefe):
     }
 
 if uploaded_file is not None:
+    # Cargar archivo Excel
     df_raw = pd.read_excel(uploaded_file)
+
+    # Limpiar columnas de texto y valores
     df_raw.columns = df_raw.columns.str.strip()
 
+    # Limpiar nombres comerciales y delegación
+    df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].astype(str).str.strip().str.title()
+    df_raw["Delegación"] = df_raw["Delegación"].astype(str).str.strip().str.upper()
+
+    # Limpiar campo beneficio y eliminar duplicados
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
+    df_raw = df_raw.drop_duplicates()
 
-    # Aseguramos columna Delegación
-    if "Delegación" not in df_raw.columns:
-        df_raw["Delegación"] = df_raw.iloc[:, -1]
-    else:
-        df_raw["Delegación"] = df_raw["Delegación"]
+    # Debug: mostrar suma real de beneficio por comercial
+    suma_beneficio_por_comercial = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
+    st.write("### Suma beneficio financiación comercial por comercial (para debug):")
+    st.dataframe(suma_beneficio_por_comercial)
 
-    # Construimos resumen inicial
-    resumen = pd.DataFrame()
-    resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
-    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
-    resumen = resumen.set_index("ownername")
-    resumen["delegacion"] = delegacion_por_owner
-    resumen = resumen.reset_index()
+    # Crear resumen base agrupado por comercial y delegación
+    resumen = df_raw.groupby(["Delegación", "Opportunity Owner"]).agg(
+        entregas = ("Opportunity Record Type", lambda x: (x=="Venta").sum()),
+        entregas_compartidas = ("Coopropietario de la Oportunidad", lambda x: x.notna().sum()),
+        compras = ("Opportunity Record Type", lambda x: (x=="Tasación").sum()),
+        vh_cambio = ("Opportunity Record Type", lambda x: (x=="Cambio").sum()),
+        entregas_con_descuento = ("Descuento", lambda x: x.notna().sum()),
+        beneficio_financiacion_total = ("Beneficio financiación comercial", "sum"),
+    ).reset_index()
 
-    # === FILTROS ===
-    delegaciones = ["Todas"] + sorted(resumen["delegacion"].dropna().unique().tolist())
-    seleccion_delegacion = st.selectbox("Filtrar por Delegación", delegaciones)
+    # Agregar columnas necesarias
+    resumen["nueva_incorporacion"] = False
+    resumen["jefe_de_tienda"] = False
+    resumen["facturacion_garantias"] = 0
+    resumen["entregas_otra_delegacion"] = 0
+    resumen["entregas_con_financiacion"] = 0
+    resumen["entregas_rapidas"] = 0
+    resumen["entregas_stock_largo"] = 0
+    resumen["resenas"] = 0
+    resumen["garantias_premium"] = 0
+    resumen["n_casos_venta_superior"] = 0
 
-    if seleccion_delegacion != "Todas":
-        resumen_filtrado = resumen[resumen["delegacion"] == seleccion_delegacion]
-    else:
-        resumen_filtrado = resumen.copy()
+    # Filtros de delegación y comercial
+    delegaciones_unicas = resumen["Delegación"].unique().tolist()
+    delegacion_filtrada = st.selectbox("Filtrar por Delegación", options=["Todas"] + delegaciones_unicas)
 
-    comerciales_filtrados = ["Todos"] + sorted(resumen_filtrado["ownername"].unique().tolist())
-    seleccion_comercial = st.selectbox("Filtrar por Comercial", comerciales_filtrados)
+    resumen_filtrado = resumen.copy()
+    if delegacion_filtrada != "Todas":
+        resumen_filtrado = resumen_filtrado[resumen_filtrado["Delegación"] == delegacion_filtrada]
 
-    # Añadimos columnas de datos numéricos
-    resumen_entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    resumen_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
-    resumen_compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    resumen_vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    resumen_descuentos = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    resumen_beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
+    comerciales_unicos = resumen_filtrado["Opportunity Owner"].unique().tolist()
+    comercial_filtrado = st.selectbox("Filtrar por Comercial", options=["Todos"] + comerciales_unicos)
 
-    resumen = resumen.set_index("ownername")
-    resumen["entregas"] = resumen_entregas
-    resumen["entregas_compartidas"] = resumen_compartidas
-    resumen["compras"] = resumen_compras
-    resumen["vh_cambio"] = resumen_vh_cambio
-    resumen["entregas_con_descuento"] = resumen_descuentos
-    resumen["beneficio_financiacion_total"] = resumen_beneficio
-    resumen = resumen.fillna(0)
-    resumen = resumen.reset_index()
+    if comercial_filtrado != "Todos":
+        resumen_filtrado = resumen_filtrado[resumen_filtrado["Opportunity Owner"] == comercial_filtrado]
 
-    # Aplicar filtro comercial final
-    if seleccion_comercial != "Todos":
-        resumen = resumen[resumen["ownername"] == seleccion_comercial]
-    else:
-        resumen = resumen.copy()
-
-    resumen = resumen.sort_values(by=["delegacion", "ownername"])
+    resumen_filtrado = resumen_filtrado.sort_values(by=["Delegación", "Opportunity Owner"])
 
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
     st.markdown("### Resultados por Comercial")
 
-    # Diccionarios para almacenar estado checkbox (Streamlit lo mantiene automáticamente si usamos key distinto)
-    nueva_incorporacion_dict = {}
-    jefe_tienda_dict = {}
-
-    for idx, fila in resumen.iterrows():
-        owner = fila["ownername"]
-        deleg = fila["delegacion"]
-
-        # Checkbox por comercial para nueva incorporacion y jefe tienda
-        col1, col2, col3 = st.columns([4, 1, 1])
+    # Checkbox para cada comercial para nueva incorporación y jefe de tienda
+    for idx, fila in resumen_filtrado.iterrows():
+        col1, col2, col3 = st.columns([3,1,1])
         with col1:
-            st.markdown(f"### Comercial: **{owner}**  _(Delegación: {deleg})_")
+            st.markdown(f"## Comercial: **{fila['Opportunity Owner']}** ({fila['Delegación']})")
         with col2:
-            nueva_incorporacion_dict[owner] = st.checkbox("Nueva incorporación", key=f"nueva_{owner}")
+            nueva = st.checkbox("Nueva incorporación", key=f"nueva_{idx}")
         with col3:
-            jefe_tienda_dict[owner] = st.checkbox("Jefe de tienda", key=f"jefe_{owner}")
+            jefe = st.checkbox("Jefe de tienda", key=f"jefe_{idx}")
 
-        # Obtener valores checkbox para el comercial actual
-        nueva = nueva_incorporacion_dict.get(owner, False)
-        jefe = jefe_tienda_dict.get(owner, False)
+        # Actualizar fila con valores de checkbox
+        fila_dict = fila.to_dict()
+        fila_dict["nueva_incorporacion"] = nueva
+        fila_dict["jefe_de_tienda"] = jefe
 
-        resultado = calcular_comision_fila(fila, nueva, jefe)
+        resultado = calcular_comision_fila(fila_dict)
 
-        st.markdown(f"**Prima total antes de penalizaciones:** {resultado['prima_total']:.2f} €")
-        st.markdown(f"**Prima final a cobrar:** {resultado['prima_final']:.2f} €")
+        st.markdown(f"### Prima total antes de penalizaciones: {resultado['prima_total']:.2f} €")
+        st.markdown(f"### Prima final a cobrar: **{resultado['prima_final']:.2f} €**")
+        st.markdown("### Desglose de conceptos:")
+        for concepto, valor in resultado["desglose"].items():
+            st.markdown(f"- {concepto.replace('_',' ').capitalize()}: {valor:.2f} €")
 
-        st.markdown("**Desglose de conceptos:**")
-        desglose = resultado['desglose']
-        for concepto, valor in desglose.items():
-            st.markdown(f"- {concepto.replace('_', ' ').capitalize()}: {valor:.2f} €")
-
-        if resultado['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones:**")
-            for pen, val in resultado['penalizaciones_detalle']:
-                st.markdown(f"- {pen}: -{val:.2f} €")
-
+        if resultado["penalizaciones_detalle"]:
+            st.markdown("### Penalizaciones:")
+            for penal, val in resultado["penalizaciones_detalle"]:
+                st.markdown(f"- {penal}: -{val:.2f} €")
         st.markdown("---")
 
     st.markdown("</div>", unsafe_allow_html=True)
