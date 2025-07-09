@@ -105,7 +105,6 @@ def calcular_incentivo_garantias(f):
         return f * 0.10
 
 def calcular_comision_fila(fila, nueva_incorporacion, jefe_tienda):
-    # Variables base
     entregas = int(fila.get('entregas', 0))
     entregas_otra_delegacion = int(fila.get('entregas_otra_delegacion', 0))
     entregas_compartidas = int(fila.get('entregas_compartidas', 0))
@@ -121,7 +120,6 @@ def calcular_comision_fila(fila, nueva_incorporacion, jefe_tienda):
     resenas = int(fila.get('resenas', 0))
     n_casos_venta_superior = int(fila.get('n_casos_venta_superior', 0))
 
-    # Cálculos
     comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion, jefe_tienda)
     comision_entregas_compartidas = entregas_compartidas * 30
     comision_compras = compras * 60
@@ -142,7 +140,6 @@ def calcular_comision_fila(fila, nueva_incorporacion, jefe_tienda):
         penalizacion_descuento + comision_beneficio + bono_garantias + bono_resenas
     )
 
-    # Penalizaciones adicionales
     penalizacion_total = 0
     penalizaciones_detalle = []
 
@@ -182,27 +179,30 @@ def calcular_comision_fila(fila, nueva_incorporacion, jefe_tienda):
         }
     }
 
-st.title("Calculadora de Comisiones Completa")
+def limpiar_y_preparar_df(df_raw):
+    df_raw.columns = df_raw.columns.str.strip()
+
+    # Limpiar y convertir Beneficio financiación comercial
+    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
+
+    # Asegurar columnas para cálculos con valores por defecto
+    for col in ["entregas", "entregas_otra_delegacion", "entregas_compartidas", "compras",
+                "vh_cambio", "garantias_premium", "facturacion_garantias", "entregas_con_financiacion",
+                "entregas_rapidas", "entregas_stock_largo", "entregas_con_descuento", "resenas",
+                "n_casos_venta_superior"]:
+        if col not in df_raw.columns:
+            df_raw[col] = 0
+
+    return df_raw
+
+st.title("Calculadora de Comisiones Completa con filtros y checkboxes")
 
 uploaded_file = st.file_uploader("Sube archivo Excel (.xlsx)", type=["xlsx"])
 
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
-    df_raw.columns = df_raw.columns.str.strip()
+    df_raw = limpiar_y_preparar_df(df_raw)
 
-    # Limpiar y convertir Beneficio financiación comercial a float
-    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
-
-    # Aquí deberás adaptar estos campos a los nombres exactos de tu Excel:
-    # Para evitar errores, si no existen, creamos con 0
-    for col in ["entregas_otra_delegacion", "facturacion_garantias", "entregas_con_financiacion",
-                "entregas_rapidas", "entregas_stock_largo", "resenas", "garantias_premium",
-                "entregas", "entregas_compartidas", "compras", "vh_cambio",
-                "entregas_con_descuento", "n_casos_venta_superior"]:
-        if col not in df_raw.columns:
-            df_raw[col] = 0
-
-    # Agrupamos los datos por Opportunity Owner
     resumen = df_raw.groupby("Opportunity Owner").agg({
         "entregas": "sum",
         "entregas_otra_delegacion": "sum",
@@ -218,14 +218,14 @@ if uploaded_file is not None:
         "entregas_con_descuento": "sum",
         "resenas": "sum",
         "n_casos_venta_superior": "sum",
-        "Delegación": "first"  # Para mostrar delegación, usamos first o mode
+        "Delegación": "first"
     }).reset_index()
 
     resumen.rename(columns={"Beneficio financiación comercial": "beneficio_financiacion_total",
-                           "Delegación": "delegacion",
-                           "Opportunity Owner": "ownername"}, inplace=True)
+                           "Opportunity Owner": "ownername",
+                           "Delegación": "delegacion"}, inplace=True)
 
-    # --- FILTROS ---
+    # Filtros arriba
     col1, col2 = st.columns(2)
     delegaciones_unicas = sorted(resumen["delegacion"].dropna().unique())
     seleccion_delegacion = col1.selectbox("Filtrar por Delegación", options=["Todas"] + delegaciones_unicas)
@@ -239,25 +239,28 @@ if uploaded_file is not None:
 
     resumen = resumen.sort_values(by=["delegacion", "ownername"])
 
-    # --- CHECKBOXES POR COMERCIAL ---
-    st.markdown("### Marcar estado especial por comercial:")
-    nueva_incorp = {}
-    jefe_tienda = {}
+    # Diccionarios para estados checkbox
+    estados_nueva = {}
+    estados_jefe = {}
+
+    st.markdown("### Marca opciones especiales por comercial")
+
     for idx, fila in resumen.iterrows():
-        c1, c2, c3 = st.columns([4, 1, 1])
+        c1, c2, c3 = st.columns([5, 1, 1])
         with c1:
             st.write(f"**{fila['ownername']}** ({fila['delegacion']})")
         with c2:
-            nueva_incorp[fila['ownername']] = st.checkbox("Nueva incorporación", key=f"nueva_{idx}")
+            estados_nueva[fila['ownername']] = st.checkbox(f"Nueva incorporación {fila['ownername']}", key=f"nueva_{idx}")
         with c3:
-            jefe_tienda[fila['ownername']] = st.checkbox("Jefe de tienda", key=f"jefe_{idx}")
+            estados_jefe[fila['ownername']] = st.checkbox(f"Jefe de tienda {fila['ownername']}", key=f"jefe_{idx}")
 
     st.markdown("---")
     st.markdown("## Resultados")
 
     for _, fila in resumen.iterrows():
-        nueva = nueva_incorp.get(fila['ownername'], False)
-        jefe = jefe_tienda.get(fila['ownername'], False)
+        nueva = estados_nueva.get(fila['ownername'], False)
+        jefe = estados_jefe.get(fila['ownername'], False)
+
         resultado = calcular_comision_fila(fila, nueva, jefe)
 
         st.markdown(f"### Comercial: {fila['ownername']} ({fila['delegacion']})")
@@ -276,4 +279,5 @@ if uploaded_file is not None:
         st.markdown("---")
 
 else:
-    st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
+    st.info("Sube un archivo Excel para empezar")
+
