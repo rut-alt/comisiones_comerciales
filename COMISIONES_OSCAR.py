@@ -4,7 +4,7 @@ import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos
+# Estilos CSS
 st.markdown("""
 <style>
     .main {
@@ -30,11 +30,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Cargar logo
 try:
     logo = Image.open("LOGO-HRMOTOR-RGB.png")
 except:
     logo = None
 
+# Header
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
@@ -42,11 +44,13 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
+# Sección para subir archivo
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Funciones de cálculo y limpieza
 def limpiar_eur(valor):
     try:
         s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
@@ -218,11 +222,12 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
         }
     }
 
+# Procesamiento del archivo cargado
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
 
-    # Aplicar limpieza del campo beneficio financiación comercial para formato europeo
+    # Limpiar valores en formato europeo para beneficio financiación
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
     if "Delegación" not in df_raw.columns:
@@ -235,8 +240,7 @@ if uploaded_file is not None:
     compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
     vh_cambio = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
     entregas_con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum() st.write(df_raw[["Opportunity Owner", "Beneficio financiación comercial"]])
-
+    beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum() 
     delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
 
     resumen = pd.DataFrame({
@@ -283,7 +287,7 @@ if uploaded_file is not None:
         nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
         jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
 
-        # Guardar sin provocar reruns infinitos
+        # Evitar reruns infinitos
         if (st.session_state[key_nuevo] != nuevo_flag) or (st.session_state[key_jefe] != jefe_flag):
             st.session_state[key_nuevo] = nuevo_flag
             st.session_state[key_jefe] = jefe_flag
