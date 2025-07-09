@@ -56,18 +56,6 @@ def limpiar_eur(valor):
     except:
         return 0.0
 
-# Aplicar limpieza al DataFrame
-df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
-
-# Ahora sumar por comercial
-beneficio_financiacion_total = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
-
-# Si quieres obtener el beneficio solo para un comercial específico, por ejemplo "Alex Vegas":
-beneficio_alex = beneficio_financiacion_total.get("Alex Vegas", 0.0)
-
-print(f"Beneficio financiación total para Alex Vegas: {beneficio_alex:.2f}")
-
-
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
         return 0
