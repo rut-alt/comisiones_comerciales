@@ -4,7 +4,7 @@ import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Estilos CSS
+# Estilos
 st.markdown("""
 <style>
     .main {
@@ -30,13 +30,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Cargar logo
 try:
     logo = Image.open("LOGO-HRMOTOR-RGB.png")
 except:
     logo = None
 
-# Header
 col1, col2 = st.columns([3, 1])
 with col1:
     st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
@@ -44,13 +42,11 @@ with col2:
     if logo:
         st.image(logo, width=250)
 
-# Sección para subir archivo
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
 st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Funciones de cálculo y limpieza
 def limpiar_eur(valor):
     try:
         s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
@@ -222,12 +218,52 @@ def calcular_comision_fila(fila, es_nuevo, es_jefe):
         }
     }
 
-# Procesamiento del archivo cargado
+def resumen_comision_beneficio(b):
+    if b <= 5000:
+        comision = 0
+        tramo = "≤ 5000 €"
+        porcentaje = 0
+    elif b <= 8000:
+        comision = b * 0.03
+        tramo = "5001 € - 8000 €"
+        porcentaje = 3
+    elif b <= 12000:
+        comision = b * 0.04
+        tramo = "8001 € - 12000 €"
+        porcentaje = 4
+    elif b <= 17000:
+        comision = b * 0.05
+        tramo = "12001 € - 17000 €"
+        porcentaje = 5
+    elif b <= 25000:
+        comision = b * 0.06
+        tramo = "17001 € - 25000 €"
+        porcentaje = 6
+    elif b <= 30000:
+        comision = b * 0.07
+        tramo = "25001 € - 30000 €"
+        porcentaje = 7
+    elif b <= 50000:
+        comision = b * 0.08
+        tramo = "30001 € - 50000 €"
+        porcentaje = 8
+    else:
+        comision = b * 0.09
+        tramo = "> 50000 €"
+        porcentaje = 9
+
+    return {
+        "beneficio": b,
+        "tramo": tramo,
+        "porcentaje": porcentaje,
+        "comision_calculada": comision
+    }
+
 if uploaded_file is not None:
     df_raw = pd.read_excel(uploaded_file)
     df_raw.columns = df_raw.columns.str.strip()
 
-    # Limpiar valores en formato europeo para beneficio financiación
+    # Aplicar limpieza del campo beneficio financiación comercial para formato europeo
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
     if "Delegación" not in df_raw.columns:
@@ -271,46 +307,38 @@ if uploaded_file is not None:
     resumen = resumen.sort_values(by=["delegacion", "ownername"]).reset_index(drop=True)
 
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### Resultados por Comercial")
 
-    for idx, row in resumen.iterrows():
-        owner = row["ownername"]
-        key_nuevo = f"nuevo_{owner}"
-        key_jefe = f"jefe_{owner}"
+    for i, row in resumen.iterrows():
+        nuevo_flag = False
+        jefe_flag = False
 
-        if key_nuevo not in st.session_state:
-            st.session_state[key_nuevo] = False
-        if key_jefe not in st.session_state:
-            st.session_state[key_jefe] = False
-
-        cols = st.columns([1, 1])
-        nuevo_flag = cols[0].checkbox("Nuevo incorporación", key=key_nuevo)
-        jefe_flag = cols[1].checkbox("Jefe de tienda", key=key_jefe)
-
-        # Evitar reruns infinitos
-        if (st.session_state[key_nuevo] != nuevo_flag) or (st.session_state[key_jefe] != jefe_flag):
-            st.session_state[key_nuevo] = nuevo_flag
-            st.session_state[key_jefe] = jefe_flag
-            st.experimental_rerun()
+        # Aquí podrías poner una condición para identificar nuevos comerciales o jefes
+        # ejemplo:
+        # nuevo_flag = row['ownername'] in lista_nuevos_comerciales
+        # jefe_flag = row['ownername'] in lista_jefes
 
         resultado = calcular_comision_fila(row, nuevo_flag, jefe_flag)
 
-        st.markdown(f"## Comercial: **{owner}**")
-        st.markdown(f"- Delegación: {row['delegacion']}")
-        st.markdown(f"- Prima total antes de penalizaciones: {resultado['prima_total']:.2f} €")
-        st.markdown(f"- Prima final a cobrar: **{resultado['prima_final']:.2f} €**")
-        st.markdown("**Desglose de conceptos:**")
-        for k, v in resultado['desglose'].items():
-            st.markdown(f"  - {k.replace('_', ' ').capitalize()}: {v:.2f} €")
-        if resultado['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones:**")
-            for pen in resultado['penalizaciones_detalle']:
-                st.markdown(f"  - {pen[0]}: {pen[1]:.2f} €")
+        st.markdown(f"### Comercial: {row['ownername']} - Delegación: {row['delegacion']}")
+        st.markdown(f"- Total comisión antes de penalizaciones: {resultado['prima_total']:.2f} €")
+        st.markdown(f"- Penalizaciones aplicadas: {', '.join([p[0] for p in resultado['penalizaciones_detalle']]) or 'Ninguna'}")
+        st.markdown(f"- Total comisión final: {resultado['prima_final']:.2f} €")
+
+        # Aquí mostramos el resumen de cómo se calcula la comisión por beneficio:
+        resumen_beneficio = resumen_comision_beneficio(row["beneficio_financiacion_total"])
+        st.markdown("#### Resumen Comisión por Beneficio")
+        st.markdown(f"- Beneficio Financiación Total: {resumen_beneficio['beneficio']:.2f} €")
+        st.markdown(f"- Tramo aplicable: {resumen_beneficio['tramo']}")
+        st.markdown(f"- Porcentaje aplicado: {resumen_beneficio['porcentaje']}%")
+        st.markdown(f"- Comisión calculada: {resumen_beneficio['comision_calculada']:.2f} €")
+
+        # Si quieres también el desglose completo de cada concepto:
+        st.markdown("#### Desglose completo comisiones y bonos:")
+        for clave, valor in resultado['desglose'].items():
+            st.markdown(f"- {clave.replace('_',' ').capitalize()}: {valor:.2f} €")
+
         st.markdown("---")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-else:
-    st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
 
 
