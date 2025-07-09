@@ -3,7 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Limpieza campo beneficio EUR a float
 def limpiar_eur(valor):
     try:
         texto = str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip()
@@ -11,7 +10,6 @@ def limpiar_eur(valor):
     except:
         return 0.0
 
-# Escalado comisión beneficio
 def calcular_comision_por_beneficio(b):
     if b <= 5000:
         return 0
@@ -30,10 +28,8 @@ def calcular_comision_por_beneficio(b):
     else:
         return b * 0.09
 
-# Cálculo comisiones entregas para vendedor normal o jefe de tienda
 def calcular_tarifa_entrega(n, es_jefe):
     if es_jefe:
-        # Escalado jefe de tienda
         if n <= 6:
             return 20
         elif n <= 9:
@@ -53,7 +49,6 @@ def calcular_tarifa_entrega(n, es_jefe):
         else:
             return 95
     else:
-        # Escalado vendedor normal
         if n <= 5:
             return 20
         elif n <= 8:
@@ -74,15 +69,13 @@ def calcular_comision_entregas(total, otras, nueva, es_jefe):
     normales = total - otras
 
     if nueva and not es_jefe:
-        # Nueva incorporacion vendedor normal: cobra 20€ hasta 6 entregas, no cobra si <=6 entregas normal
         if total <= 6:
-            return normales * 20 + otras * 10 * 0.5  # entrega en otra delegacion mitad
+            return normales * 20 + otras * 10 * 0.5
         else:
             return normales * tarifa + otras * tarifa * 0.5
     else:
-        # Resto vendedores y jefes
         if total <= 6 and es_jefe:
-            return total * 20  # jefe cobra 20€ si <=6 entregas
+            return total * 20
         return normales * tarifa + otras * tarifa * 0.5
 
 def calcular_comision_fila(fila, nueva, jefe):
@@ -93,8 +86,7 @@ def calcular_comision_fila(fila, nueva, jefe):
     vh_cambio = int(fila.get('vh_cambio', 0))
     entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
     beneficio_financiacion_total = float(fila.get('beneficio_financiacion_total', 0))
-    
-    # Comisiones
+
     comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva, jefe)
     comision_entregas_compartidas = entregas_compartidas * 30
     comision_compras = compras * 60
@@ -130,17 +122,22 @@ uploaded_file = st.file_uploader("Sube un archivo Excel (.xlsx)", type=["xlsx"])
 if uploaded_file:
     df_raw = pd.read_excel(uploaded_file)
 
-    # Limpieza campo beneficio
+    # Limpiar datos
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
-
-    # Limpiar y formatear columnas clave
+    df_raw["Delegación"] = df_raw["Delegación"].astype(str).str.strip().str.upper()
     df_raw["Opportunity Owner"] = df_raw["Opportunity Owner"].astype(str).str.strip()
-    df_raw["Delegación"] = df_raw["Delegación"].astype(str).str.strip()
 
-    # Crear resumen agrupado por delegación y comercial
+    # Eliminar duplicados para evitar suma errónea
+    df_raw = df_raw.drop_duplicates()
+
+    # Mostrar datos para Sebastián Machado para depurar
+    st.markdown("### Datos para Sebastián Machado (antes de agrupar)")
+    st.dataframe(df_raw[df_raw["Opportunity Owner"]=="Sebastian Machado"][["Beneficio financiación comercial", "Delegación", "Opportunity Owner"]])
+
+    # Agrupar datos para resumen
     resumen = df_raw.groupby(["Delegación", "Opportunity Owner"], dropna=False).agg(
         entregas = ("Opportunity Record Type", lambda x: (x == "Venta").sum()),
-        entregas_otra_delegacion = ("Delegación", lambda x: (x != x.iloc[0]).sum()),  # Contamos las entregas en otras delegaciones (esto es simplificado, ajustar si hay otra lógica)
+        entregas_otra_delegacion = ("Delegación", lambda x: (x != x.iloc[0]).sum()),
         entregas_compartidas = ("Coopropietario de la Oportunidad", lambda x: x.notna().sum()),
         compras = ("Opportunity Record Type", lambda x: (x == "Tasación").sum()),
         vh_cambio = ("Opportunity Record Type", lambda x: (x == "Cambio").sum()),
@@ -148,7 +145,7 @@ if uploaded_file:
         beneficio_financiacion_total = ("Beneficio financiación comercial", "sum"),
     ).reset_index()
 
-    # Ordenar por delegacion y luego por comercial
+    # Ordenar
     resumen = resumen.sort_values(by=["Delegación", "Opportunity Owner"])
 
     # Filtros
@@ -164,7 +161,7 @@ if uploaded_file:
     if seleccion_comercial != "Todos":
         resumen = resumen[resumen["Opportunity Owner"] == seleccion_comercial]
 
-    # Diccionarios para checkbox
+    # Checkbox para cada comercial
     nuevos_dict = {}
     jefe_dict = {}
 
@@ -190,7 +187,6 @@ if uploaded_file:
 
     st.markdown("---")
 
-    # Ahora calcular y mostrar comisiones con el estado checkbox
     for idx, fila in resumen.iterrows():
         nueva = nuevos_dict.get(f"nuevo_{idx}", False)
         jefe = jefe_dict.get(f"jefe_{idx}", False)
