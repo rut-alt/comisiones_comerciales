@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Calculadora de Comisiones con checkboxes en resultados", layout="wide")
+st.set_page_config(page_title="Calculadora Comisiones Completa", layout="wide")
 
 def limpiar_eur(valor):
     try:
@@ -20,7 +20,7 @@ def limpiar_eur(valor):
     except:
         return 0.0
 
-def calcular_tarifa_entrega_vendedor(n):
+def tarifa_entrega_vendedor(n):
     if n <= 6:
         return 0
     elif 7 <= n <= 9:
@@ -40,7 +40,7 @@ def calcular_tarifa_entrega_vendedor(n):
     else:
         return 95
 
-def calcular_tarifa_entrega_jefe(n):
+def tarifa_entrega_jefe(n):
     if n <= 6:
         return 20
     elif 7 <= n <= 9:
@@ -63,10 +63,10 @@ def calcular_tarifa_entrega_jefe(n):
 def calcular_comision_entregas(total, entregas_otra_delegacion, nueva_incorporacion, jefe_tienda):
     normales = total - entregas_otra_delegacion
     if jefe_tienda:
-        tarifa = calcular_tarifa_entrega_jefe(total)
+        tarifa = tarifa_entrega_jefe(total)
         return normales * tarifa + entregas_otra_delegacion * tarifa * 0.5
     else:
-        tarifa = calcular_tarifa_entrega_vendedor(total)
+        tarifa = tarifa_entrega_vendedor(total)
         if nueva_incorporacion and total <= 6:
             return normales * 20 + entregas_otra_delegacion * 10
         elif not nueva_incorporacion and total <= 6:
@@ -182,15 +182,23 @@ def limpiar_y_preparar_df(df_raw):
     df_raw.columns = df_raw.columns.str.strip()
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    for col in ["entregas", "entregas_otra_delegacion", "entregas_compartidas", "compras",
-                "vh_cambio", "garantias_premium", "facturacion_garantias", "entregas_con_financiacion",
-                "entregas_rapidas", "entregas_stock_largo", "entregas_con_descuento", "resenas"]:
+    # Asegurar que las columnas necesarias existan, si no poner 0
+    cols_int = ["entregas", "entregas_otra_delegacion", "entregas_compartidas", "compras",
+                "vh_cambio", "garantias_premium", "entregas_con_financiacion",
+                "entregas_rapidas", "entregas_stock_largo", "entregas_con_descuento", "resenas"]
+    for col in cols_int:
         if col not in df_raw.columns:
             df_raw[col] = 0
+        df_raw[col] = pd.to_numeric(df_raw[col], errors='coerce').fillna(0).astype(int)
+
+    # facturacion garantias es float, si no existe poner 0
+    if "facturacion_garantias" not in df_raw.columns:
+        df_raw["facturacion_garantias"] = 0
+    df_raw["facturacion_garantias"] = pd.to_numeric(df_raw["facturacion_garantias"], errors='coerce').fillna(0)
 
     return df_raw
 
-st.title("Calculadora de Comisiones con checkboxes en resultados")
+st.title("Calculadora de Comisiones Completa con checkboxes por comercial")
 
 uploaded_file = st.file_uploader("Sube archivo Excel (.xlsx)", type=["xlsx"])
 
@@ -215,11 +223,13 @@ if uploaded_file is not None:
         "Delegación": "first"
     }).reset_index()
 
-    resumen.rename(columns={"Beneficio financiación comercial": "beneficio_financiacion_total",
-                           "Opportunity Owner": "ownername",
-                           "Delegación": "delegacion"}, inplace=True)
+    resumen.rename(columns={
+        "Beneficio financiación comercial": "beneficio_financiacion_total",
+        "Opportunity Owner": "ownername",
+        "Delegación": "delegacion"
+    }, inplace=True)
 
-    # Filtros en columnas
+    # Filtros arriba para delegacion y comercial
     col1, col2 = st.columns(2)
     delegaciones_unicas = sorted(resumen["delegacion"].dropna().unique())
     seleccion_delegacion = col1.selectbox("Filtrar por Delegación", options=["Todas"] + delegaciones_unicas)
@@ -233,11 +243,9 @@ if uploaded_file is not None:
 
     resumen = resumen.sort_values(by=["delegacion", "ownername"])
 
-    # Mostrar resultados con checkbox en cada uno para recalcular individual
     for idx, fila in resumen.iterrows():
         st.markdown(f"## Comercial: {fila['ownername']} ({fila['delegacion']})")
 
-        # Checkbox para cada comercial
         col_nueva, col_jefe = st.columns(2)
         nueva = col_nueva.checkbox("Nueva incorporación", key=f"nueva_{idx}")
         jefe = col_jefe.checkbox("Jefe de tienda", key=f"jefe_{idx}")
