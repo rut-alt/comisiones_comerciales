@@ -1,8 +1,8 @@
 import streamlit as st
-import pandas as pd
 from PIL import Image
+import pandas as pd
 
-st.set_page_config(page_title="Comisiones HRMOTOR", layout="centered")
+st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
 # Estilos
 st.markdown("""
@@ -19,11 +19,6 @@ st.markdown("""
         margin-bottom: 25px;
         border: 1px solid #ccc;
     }
-    .input-section label,
-    .input-section input,
-    .input-section div[data-baseweb="input"] input {
-        color: white !important;
-    }
     .result-section {
         background-color: #2b344d;
         color: white !important;
@@ -35,7 +30,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar logo
+# Logo
 try:
     logo = Image.open("LOGO-HRMOTOR-RGB.png")
 except:
@@ -43,57 +38,111 @@ except:
 
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown("<h1 style='color:#2b344d;'>ANÁLISIS DE DATOS - PRIMER EXCEL</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#2b344d;'>CALCULADORA DE COMISIONES VENDEDORES</h1>", unsafe_allow_html=True)
 with col2:
     if logo:
         st.image(logo, width=250)
 
-# Subida de archivo Excel
+# Subida de Excel
 st.markdown("<div class='input-section'>", unsafe_allow_html=True)
-st.markdown("### 📂 Sube el archivo EXCEL de oportunidades (con entregas, cambios, compras...)")
-
-uploaded_file = st.file_uploader("Sube un archivo XLSX con los campos: Opportunity Owner, Record Type, etc.", type=["xlsx"])
+st.markdown("### 📂 Cargar archivo Excel con oportunidades")
+uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Función para limpiar campos tipo "EUR85,00"
+# Función limpieza
 def limpiar_eur(valor):
     try:
         return float(str(valor).replace("EUR", "").replace(".", "").replace(",", ".").strip())
     except:
         return 0.0
 
+# FUNCIONES DE CÁLCULO (idénticas a las tuyas)
+# [...] Aquí irían tus funciones calcular_tarifa_entrega, calcular_comision_entregas, etc.
+# Las omito para brevedad en este mensaje (me confirmas si las pego de nuevo o las tienes)
+
+# ⬇️ Nos centramos en rellenar los campos necesarios automáticamente desde el Excel
+
 if uploaded_file is not None:
-    # Leer el archivo Excel
-    df = pd.read_excel(uploaded_file)
+    df_raw = pd.read_excel(uploaded_file)
+    df_raw.columns = df_raw.columns.str.strip()  # limpiar espacios
 
-    # Normalizar nombres de columnas
-    df.columns = df.columns.str.strip()
+    # Limpiar el campo beneficio
+    df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Limpiar campo de beneficio
-    df["Beneficio financiación comercial"] = df["Beneficio financiación comercial"].apply(limpiar_eur)
+    # Crear resumen por Opportunity Owner
+    resumen = pd.DataFrame()
+    resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
+    resumen = resumen.set_index("ownername")
 
-    # Agrupaciones
-    entregas = df[df["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
-    compras = df[df["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
-    cambios = df[df["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
-    compartidas = df[df["Coopropietario de la Oportunidad"].notna() &
-                     (df["Coopropietario de la Oportunidad"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
-    beneficios = df.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
+    # Entregas = tipo Venta
+    entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
+    resumen["entregas"] = entregas
 
-    # Unir todos los datos en un único resumen
-    resumen_df = pd.DataFrame({
-        "entregas": entregas,
-        "compras": compras,
-        "vh_cambio": cambios,
-        "entregas_compartidas": compartidas,
-        "beneficio_financiero": beneficios
-    }).fillna(0).reset_index().rename(columns={"Opportunity Owner": "ownername"})
+    # Entregas compartidas = hay copropietario
+    compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
+    resumen["entregas_compartidas"] = compartidas
 
-    # Mostrar el resumen
+    # Compras = tipo Tasación
+    compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
+    resumen["compras"] = compras
+
+    # VH como cambio = tipo Cambio
+    cambios = df_raw[df_raw["Opportunity Record Type"] == "Cambio"].groupby("Opportunity Owner").size()
+    resumen["vh_cambio"] = cambios
+
+    # Con descuento = descuento marcado como algo distinto a vacío o nulo
+    con_descuento = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
+    resumen["entregas_con_descuento"] = con_descuento
+
+    # Beneficio financiero
+    beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
+    resumen["beneficio_financiero"] = beneficio
+
+    # Rellenar columnas faltantes con ceros
+    for col in [
+        "entregas", "entregas_compartidas", "compras", "vh_cambio", "beneficio_financiero", "entregas_con_descuento"
+    ]:
+        if col not in resumen:
+            resumen[col] = 0
+    resumen.fillna(0, inplace=True)
+
+    # Agregar columnas que aún no tenemos pero necesita la función
+    resumen["nueva_incorporacion"] = False
+    resumen["facturacion_garantias"] = 0
+    resumen["beneficio_financiacion_total"] = resumen["beneficio_financiero"]
+    resumen["entregas_con_financiacion"] = 0
+    resumen["entregas_rapidas"] = 0
+    resumen["entregas_stock_largo"] = 0
+    resumen["resenas"] = 0
+    resumen["garantias_premium"] = 0
+    resumen["n_casos_venta_superior"] = 0
+
+    # Convertimos a DataFrame plano
+    resumen = resumen.reset_index()
+
+    # Aplicamos tu lógica
+    resultados = []
+    for _, fila in resumen.iterrows():
+        resultado = calcular_comision_fila(fila)
+        resultados.append({
+            'ownername': fila['ownername'],
+            'prima_final': resultado['prima_final'],
+            'prima_total': resultado['prima_total'],
+            'penalizaciones_detalle': resultado['penalizaciones_detalle'],
+            'desglose': resultado['desglose']
+        })
+
     st.markdown("<div class='result-section'>", unsafe_allow_html=True)
-    st.markdown("### 📊 Resumen extraído del Excel")
-    st.dataframe(resumen_df)
+    st.markdown("### Resultados por Comercial")
+
+    for r in resultados:
+        st.markdown(f"## Comercial: **{r['ownername']}**")
+        st.markdown(f"### Prima total antes de penalizaciones: {r['prima_total']:.2f} €")
+        st.markdown(f"### Prima final a cobrar: **{r['prima_final']:.2f} €**")
+        st.markdown("---")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    st.info("Por favor, sube el archivo Excel (.xlsx) para comenzar.")
+    st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
+
