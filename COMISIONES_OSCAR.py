@@ -48,12 +48,15 @@ uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
 def limpiar_eur(valor):
+import re
     try:
-        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
-        s = s.replace(".", "").replace(",", ".")
-        return float(s) if s else 0.0
+        s = str(valor)
+        s = re.sub(r"[^\d,.-]", "", s)  # quitar todo menos dígitos, coma, punto y guion
+        s = s.replace(".", "").replace(",", ".")  # quitar separador miles y convertir decimal
+        return float(s)
     except:
         return 0.0
+
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
