@@ -4,19 +4,15 @@ import re
 
 st.set_page_config(page_title="Calculadora de Comisiones", layout="centered")
 
-# Limpieza formato EUR a float
 def limpiar_eur(valor):
     try:
         s = str(valor).strip()
         s = s.replace("EUR", "").strip()
-        # Eliminar puntos de miles, cambiar coma decimal a punto
         s = re.sub(r'\.(?=\d{3},)', '', s)
         s = s.replace(",", ".")
         return float(s)
     except:
         return 0.0
-
-# Funciones de cálculo de comisiones
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
@@ -59,17 +55,14 @@ def calcular_tarifa_entrega_jefe(n):
         return 95
 
 def calcular_comision_entregas(total, entregas_otra_delegacion, nueva_incorporacion, jefe_tienda):
-    # Elegir tarifa según rol
     if jefe_tienda:
         tarifa = calcular_tarifa_entrega_jefe(total)
-        # Entregas en otra delegacion se pagan a mitad
         normales = total - entregas_otra_delegacion
         return normales * tarifa + entregas_otra_delegacion * (tarifa / 2)
     else:
         tarifa = calcular_tarifa_entrega_vendedor(total)
         normales = total - entregas_otra_delegacion
         if nueva_incorporacion and total <= 6:
-            # En nuevas incorporaciones, si tiene <=6 entregas, se paga 20€ por entrega
             return normales * 20 + entregas_otra_delegacion * 10
         elif not nueva_incorporacion and total <= 6:
             return 0
@@ -121,7 +114,7 @@ def calcular_comision_fila(fila, nueva_incorporacion=False, jefe_tienda=False):
     entregas_con_descuento = int(fila.get('entregas_con_descuento', 0))
     resenas = int(fila.get('resenas', 0))
 
-    bono_ventas_sobre_pvp = 0  # No definido en detalle, lo dejamos 0
+    bono_ventas_sobre_pvp = 0
 
     comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion, jefe_tienda)
     comision_compras = compras * 60
@@ -178,9 +171,9 @@ def calcular_comision_fila(fila, nueva_incorporacion=False, jefe_tienda=False):
         }
     }
 
-# --- Streamlit app ---
+# --- App principal ---
 
-st.markdown("# Calculadora de Comisiones")
+st.title("Calculadora de Comisiones")
 
 uploaded_file = st.file_uploader("Sube un archivo Excel (.xlsx) con las oportunidades", type=["xlsx"])
 
@@ -192,21 +185,22 @@ if uploaded_file is not None:
     # Limpiar campo Beneficio financiación comercial
     df_raw["Beneficio financiación comercial"] = df_raw["Beneficio financiación comercial"].apply(limpiar_eur)
 
-    # Ver si existe columna 'Delegacion', si no, asignar "Sin delegación"
-    if "Delegacion" not in df_raw.columns:
-        df_raw["Delegacion"] = "Sin delegación"
+    # Delegación
+    if "Delegación" not in df_raw.columns:
+        df_raw["Delegación"] = df_raw.iloc[:, -1]
+    else:
+        df_raw["Delegación"] = df_raw["Delegación"]
 
-    # Resumen inicial
+    # Crear resumen
     resumen = pd.DataFrame()
     resumen["ownername"] = df_raw["Opportunity Owner"].dropna().unique()
 
-    # Delegación por owner (primer valor)
-    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegacion"].first()
+    delegacion_por_owner = df_raw.groupby("Opportunity Owner")["Delegación"].first()
     resumen = resumen.set_index("ownername")
     resumen["delegacion"] = delegacion_por_owner
     resumen = resumen.reset_index()
 
-    # Agrupaciones y conteos
+    # Conteos y sumas
     resumen_entregas = df_raw[df_raw["Opportunity Record Type"] == "Venta"].groupby("Opportunity Owner").size()
     resumen_compartidas = df_raw[df_raw["Coopropietario de la Oportunidad"].notna() & (df_raw["Coopropietario de la Oportunidad"] != "")].groupby("Opportunity Owner").size()
     resumen_compras = df_raw[df_raw["Opportunity Record Type"] == "Tasación"].groupby("Opportunity Owner").size()
@@ -214,7 +208,6 @@ if uploaded_file is not None:
     resumen_descuentos = df_raw[df_raw["Descuento"].notna() & (df_raw["Descuento"].astype(str).str.strip() != "")].groupby("Opportunity Owner").size()
     resumen_beneficio = df_raw.groupby("Opportunity Owner")["Beneficio financiación comercial"].sum()
 
-    # Agregar a resumen
     resumen = resumen.set_index("ownername")
     resumen["entregas"] = resumen_entregas
     resumen["entregas_compartidas"] = resumen_compartidas
@@ -230,64 +223,34 @@ if uploaded_file is not None:
         if col not in resumen:
             resumen[col] = 0
     resumen = resumen.fillna(0)
-
     resumen = resumen.reset_index()
 
-    # Ordenar por delegación y nombre
     resumen = resumen.sort_values(by=["delegacion", "ownername"])
 
-    # Checkboxes para nueva incorporación y jefe de tienda
-    st.markdown("## Marca si el comercial es nueva incorporación o jefe de tienda")
+    st.markdown("## Comercial y opciones")
 
-    nueva_incorp_states = {}
-    jefe_tienda_states = {}
+    for idx, fila in resumen.iterrows():
+        owner = fila["ownername"]
+        delegacion = fila["delegacion"]
 
-    for delegacion, grupo in resumen.groupby("delegacion"):
-        st.markdown(f"### Delegación: {delegacion}")
-        for _, fila in grupo.iterrows():
-            owner = fila['ownername']
-            col1, col2, col3 = st.columns([4, 1, 1])
-            with col1:
-                st.markdown(f"**{owner}**")
-            with col2:
-                nueva_key = f"nueva_{owner}"
-                nueva_incorp_states[owner] = st.checkbox("Nueva incorporación", key=nueva_key)
-            with col3:
-                jefe_key = f"jefe_{owner}"
-                jefe_tienda_states[owner] = st.checkbox("Jefe de tienda", key=jefe_key)
+        with st.expander(f"Delegación: {delegacion} - Comercial: {owner}", expanded=True):
+            col1, col2 = st.columns(2)
+            nueva_incorporacion = col1.checkbox(f"Nueva incorporación - {owner}", key=f"nueva_{idx}")
+            jefe_tienda = col2.checkbox(f"Jefe de tienda - {owner}", key=f"jefe_{idx}")
 
-    # Calcular comisiones con los flags seleccionados
-    resultados = []
-    for _, fila in resumen.iterrows():
-        owner = fila['ownername']
-        nueva_flag = nueva_incorp_states.get(owner, False)
-        jefe_flag = jefe_tienda_states.get(owner, False)
-        resultado = calcular_comision_fila(fila, nueva_flag, jefe_flag)
-        resultados.append({
-            'ownername': owner,
-            'delegacion': fila['delegacion'],
-            'prima_final': resultado['prima_final'],
-            'prima_total': resultado['prima_total'],
-            'penalizaciones_detalle': resultado['penalizaciones_detalle'],
-            'desglose': resultado['desglose']
-        })
+            resultado = calcular_comision_fila(fila, nueva_incorporacion, jefe_tienda)
 
-    st.markdown("---")
-    st.markdown("## Resultados por Comercial")
+            st.markdown(f"**Prima total antes de penalizaciones:** {resultado['prima_total']:.2f} €")
+            st.markdown(f"**Prima final a cobrar:** {resultado['prima_final']:.2f} €")
 
-    for r in resultados:
-        st.markdown(f"### Delegación: {r['delegacion']}")
-        st.markdown(f"#### Comercial: **{r['ownername']}**")
-        st.markdown(f"- Prima total antes de penalizaciones: {r['prima_total']:.2f} €")
-        st.markdown(f"- Prima final a cobrar: **{r['prima_final']:.2f} €**")
-        st.markdown("**Desglose de conceptos:**")
-        for k, v in r['desglose'].items():
-            st.markdown(f"  - {k.replace('_', ' ').capitalize()}: {v:.2f} €")
-        if r['penalizaciones_detalle']:
-            st.markdown("**Penalizaciones aplicadas:**")
-            for desc, val in r['penalizaciones_detalle']:
-                st.markdown(f"  - {desc}: -{val:.2f} €")
-        st.markdown("---")
+            st.markdown("**Desglose de conceptos:**")
+            for concepto, valor in resultado['desglose'].items():
+                st.markdown(f"- {concepto.replace('_',' ').capitalize()}: {valor:.2f} €")
+
+            if resultado['penalizaciones_detalle']:
+                st.markdown("**Penalizaciones aplicadas:**")
+                for desc, val in resultado['penalizaciones_detalle']:
+                    st.markdown(f"- {desc}: -{val:.2f} €")
 
 else:
     st.info("Por favor, sube un archivo Excel (.xlsx) para calcular las comisiones.")
