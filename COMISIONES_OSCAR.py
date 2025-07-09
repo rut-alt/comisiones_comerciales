@@ -48,7 +48,7 @@ uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
 def limpiar_eur(valor):
-import re
+
     try:
         s = str(valor)
         s = re.sub(r"[^\d,.-]", "", s)  # quitar todo menos dígitos, coma, punto y guion
