@@ -140,8 +140,7 @@ def calcular_comision_fila(fila):
 
     bono_ventas_sobre_pvp = 0
 
-    # DEBUG para ver beneficio que se usa en cálculo
-    st.write(f"DEBUG: Comercial={fila.get('ownername', 'N/A')}, beneficio_financiacion_total={beneficio_financiacion_total}")
+
 
     comision_entregas = calcular_comision_entregas(entregas, entregas_otra_delegacion, nueva_incorporacion)
     comision_compras = compras * 60
