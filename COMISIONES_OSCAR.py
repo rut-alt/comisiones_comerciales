@@ -47,14 +47,25 @@ st.markdown("### 📂 Cargar archivo Excel con oportunidades")
 uploaded_file = st.file_uploader("Sube un archivo .xlsx", type=["xlsx"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Limpieza correcta del campo monetario (formato europeo)
+import re
+
 def limpiar_eur(valor):
     try:
-        s = str(valor).replace("EUR", "").replace("€", "").replace(" ", "").strip()
-        s = s.replace(".", "").replace(",", ".")
-        return float(s) if s else 0.0
+        if pd.isna(valor):
+            return 0.0
+        s = str(valor)
+        s = re.sub(r"[^\d,\.]", "", s)  # Elimina todo excepto dígitos, puntos y comas
+        if s.count(",") == 1:
+            # Formato europeo típico: 12.345,67
+            s = s.replace(".", "")  # Elimina separadores de miles
+            s = s.replace(",", ".")  # Convierte coma decimal a punto
+        elif s.count(".") == 1 and s.count(",") == 0:
+            # Formato inglés (12,345.67) por si acaso
+            s = s.replace(",", "")  # Elimina separadores de miles
+        return float(s)
     except:
         return 0.0
+
 
 def calcular_tarifa_entrega_vendedor(n):
     if n <= 6:
